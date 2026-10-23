@@ -1,0 +1,5 @@
+# Sumber lexicon
+
+InSet (Indonesia Sentiment Lexicon), Fajri Koto dan Gemala Y. Rahmaningtyas, 2017, [makalah DOI](https://doi.org/10.1109/ialp.2017.8300625). Berkas diperoleh dari [repositori pengarang](https://github.com/fajri91/InSet) pada commit `9cb9d2971c575d64f4f0ed13c35048095f072a5b`: `positive.tsv` SHA-256 `4d0dc2a6b2fe88a438fe5a61663f45c5cf60ebaeb019d4ca4d31c3315121c2ae`, `negative.tsv` SHA-256 `b8d4b231077967d07ae07014b9dcea255301c2b17a2452c215e3d810a4ba3be4`. Berkas di `storage/lexicon/`, tidak masuk Git. Repo asal tidak menyatakan lisensi di endpoint GitHub; periksa izin redistribusi sebelum membagikan berkas kamus.
+
+Loader saat ini mengeluarkan kata yang ada di kedua polaritas dari pemetaan tunggal. Kata yang tidak cocok, skor nol, polaritas campur, atau negasi harus masuk review; ini heuristik awal, bukan label ground truth. Kamus asal berasal dari microblog, bukan validasi khusus komentar pertambangan PT Freeport Indonesia. Lakukan validasi domain dan evaluasi dengan anotasi manual independen sebelum melatih atau mengklaim akurasi.
