@@ -10,19 +10,26 @@ Dokumen ini berisi batasan keras yang wajib dipatuhi AI coding agent saat bekerj
 4. Jangan mengubah fokus menjadi sentimen terhadap perusahaan secara umum jika komentar dan definisi dataset secara khusus berkaitan dengan aktivitas pertambangan.
 5. Jangan mengarang sumber data, jumlah komentar, tanggal pengambilan data, label, skor lexicon, hasil prediksi, akurasi, precision, recall, F1-score, atau status implementasi.
 
-## B. Aturan UI/UX — Ikuti PRD dan Prototype
+## B. Aturan UI/UX — Ikuti Keputusan Desain Terbaru
 
-1. Pertahankan desain minimalis monokromatik hitam, putih, dan abu-abu/slate.
-2. Pertahankan hirarki visual, sidebar, kartu, tabel, ukuran judul, tombol, jarak, radius, dan gaya form prototype sejauh aset tersedia.
-3. Utamakan desktop web sekitar 1280–1440 px, namun jangan membuat antarmuka rusak pada layar lebih kecil.
-4. Halaman utama yang diizinkan: Landing Page, Login, Register, Import Dataset, Dashboard, Preprocessing, Klasifikasi, dan Testing.
-5. Sidebar halaman kerja harus tetap mengikuti prototype: **Dashboard, Preprocessing, Klasifikasi, Testing, Logout**. Kelola Akun hanya jika fitur tersebut memang ada pada rancangan/ruang lingkup implementasi.
-6. **Jangan menambahkan menu utama “Lexicon” ke sidebar.** Lexicon adalah langkah pertama di dalam halaman Preprocessing.
-7. Hasil dan evaluasi tampil pada halaman Klasifikasi bila mengikuti prototype; jangan membuat menu utama Evaluasi baru.
-8. Jangan merombak UI menjadi desain baru, menambah wizard besar, atau membuat halaman tambahan tanpa persetujuan pemilik proyek.
-9. Setiap nilai ringkasan harus dari database atau proses aktual. Bila belum ada data, tampilkan empty state yang jelas.
-10. Data contoh harus diberi label “Contoh/Demo” secara terlihat dan tidak boleh bercampur dengan data penelitian.
+Keputusan pemilik proyek tanggal 27 Oktober 2026 ini menggantikan aturan visual/navigasi lama yang bertentangan. Referensi utama adalah `stitch_unified_ui_design_system.zip`, tetapi seluruh domain, teks, data, dan metode wajib disesuaikan untuk studi kasus aktivitas pertambangan PT Freeport Indonesia.
 
+1. Gunakan design system modern SaaS dengan magenta/pink pastel, kartu putih, latar lembut, radius konsisten, spacing lega, dan komponen responsif.
+2. Gunakan token warna: primary `#F13E93`, primary-soft `#F891BB`, accent `#F9D0CD`, info/highlight `#FAFFCB`, page `#FFF7F9`, surface `#FFFFFF`, text `#23121B`, muted `#7A6671`.
+3. Warna semantik sentimen: Positif `#10B981` dengan latar `#E6F4EA`; Netral `#F59E0B` dengan latar `#FEF3C7`; Negatif `#EF4444` dengan latar `#FEE2E2`. Jangan menggunakan magenta untuk menyamarkan kategori sentimen.
+4. Utamakan desktop sekitar 1280–1440 px tetapi wajib responsif. Uji paling sedikit 390 px, 768 px, 1024 px, dan 1366/1440 px. Sidebar desktop berada di kiri; tablet dapat dilipat; mobile menggunakan drawer.
+5. Halaman produk yang diizinkan: Landing Page, Login, Register, Dashboard, Preprocessing, Klasifikasi, Hasil Klasifikasi, Testing, serta Kelola Dataset khusus Superadmin.
+6. Sidebar halaman kerja: **Dashboard, Preprocessing, Klasifikasi, Hasil Klasifikasi, Testing, Logout**. Menu **Kelola Dataset** hanya untuk Superadmin.
+7. Impor dataset dimulai melalui modal **Impor Dataset** dari Dashboard, bukan menu sidebar permanen. Route upload yang sudah ada boleh dipertahankan sebagai fallback/deep link dan handler backend.
+8. Setelah login berhasil, arahkan pengguna ke Dashboard. Jika pengguna belum memiliki dataset, buka modal Impor Dataset secara otomatis. Jangan membuka modal berulang pada setiap refresh; batasi prompt otomatis per login/session. Pengguna yang sudah memiliki dataset masuk ke Dashboard normal.
+9. Dashboard harus menyediakan tombol untuk membuka kembali modal Impor Dataset. Modal berisi upload CSV dan field kolom yang memang didukung backend; jangan menambahkan preset/dataset wisata Bali atau dukungan format yang belum ada.
+10. Jika upload gagal, tampilkan error yang aman dan dapat dipahami di modal sehingga pengguna dapat memilih ulang berkas. Jika upload berhasil, ikuti proses backend yang ada: simpan ke MySQL, jalankan pelabelan InSet otomatis bila kamus valid tersedia, lalu arahkan ke Preprocessing dan tampilkan status job aktual.
+11. **Jangan menambahkan menu utama “Lexicon”.** Lexicon adalah langkah pertama pada halaman Preprocessing.
+12. Training dan pengaturan model berada di halaman Klasifikasi; ringkasan eksperimen, metrik, confusion matrix, dan hasil evaluasi tampil pada halaman terpisah **Hasil Klasifikasi**. Jangan membuat menu Evaluasi ketiga.
+13. Setiap nilai ringkasan, grafik, jumlah data, progres, label, dan metrik harus berasal dari database atau proses aktual. Jika data belum tersedia, tampilkan empty state. Jangan memakai angka contoh dari referensi sebagai hasil penelitian.
+14. Gunakan modal yang aksesibel: judul terhubung ke dialog, fokus keyboard dikelola, tersedia tombol tutup dan dukungan Escape, error diumumkan dengan benar, dan interaksi keyboard tidak rusak.
+15. Jangan membuat wizard yang mengunci navigasi. Pengguna tetap dapat membuka halaman lain, tetapi sistem harus menjelaskan jika prasyarat pada halaman tersebut belum terpenuhi.
+16. Pertahankan aturan role, CSRF, dan otorisasi backend. Penyembunyian tombol/menu di frontend bukan pengganti pemeriksaan server.
 ## C. Urutan Proses yang Wajib
 
 Urutan default sistem:
@@ -100,14 +107,20 @@ Urutan default sistem:
 
 Pekerjaan tidak boleh dinyatakan selesai jika salah satu hal berikut belum terpenuhi atau belum dijelaskan sebagai keterbatasan:
 
-- [ ] Topik, seluruh halaman, teks UI, dan dokumentasi hanya membahas aktivitas pertambangan PT Freeport Indonesia.
-- [ ] UI sesuai prototype/PRD awal dan tidak memiliki menu utama Lexicon tersendiri.
-- [ ] Urutan Lexicon → Preprocessing → SVM sesuai ketentuan.
+- [ ] Topik, seluruh halaman, teks UI, dan dokumentasi produk hanya membahas aktivitas pertambangan PT Freeport Indonesia.
+- [ ] Design system magenta/pink pastel diterapkan konsisten dan responsif; bukan lagi memakai aturan monokrom lama.
+- [ ] Login pengguna tanpa dataset menampilkan modal Impor Dataset di atas Dashboard; pengguna yang punya dataset tidak dipaksa melihat modal setiap refresh.
+- [ ] Modal impor dapat dibuka kembali dari Dashboard, mengirim CSV ke backend yang ada, mempertahankan CSRF/validasi, serta menampilkan pesan error dan sukses yang benar.
+- [ ] Sidebar memuat Dashboard, Preprocessing, Klasifikasi, Hasil Klasifikasi, Testing, dan Logout; Kelola Dataset hanya untuk Superadmin.
+- [ ] Tidak ada menu utama Lexicon. Lexicon → Preprocessing tetap sesuai urutan wajib.
+- [ ] Klasifikasi terpisah dari Hasil Klasifikasi; hasil hanya memakai eksperimen completed dan data aktual.
+- [ ] Progress, metrik, jumlah data, dan status proses bukan animasi/angka palsu.
 - [ ] Label manual tidak tertimpa lexicon.
 - [ ] Metadata sumber label dan pelabelan manual terlindungi di backend untuk Superadmin.
-- [ ] Data CSV divalidasi dan disimpan secara benar di MySQL.
-- [ ] TF-IDF bebas data leakage dan artefak cocok dengan model.
+- [ ] Data CSV divalidasi dan disimpan dengan benar di MySQL.
+- [ ] TF-IDF bebas data leakage dan artefak vectorizer selalu cocok dengan model.
 - [ ] Evaluasi tiga kelas memakai confusion matrix 3 × 3 dan metrik aktual.
 - [ ] Single testing dan batch testing diuji.
 - [ ] Tidak ada angka hasil, jumlah data, atau status model yang dikarang.
+- [ ] Tes backend, keamanan, dan responsive UI dijalankan atau keterbatasan yang belum diuji dilaporkan dengan jelas.
 - [ ] Konfigurasi setup dan hasil tes didokumentasikan.
