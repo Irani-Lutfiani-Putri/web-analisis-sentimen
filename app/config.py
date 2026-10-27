@@ -25,6 +25,7 @@ def load_config():
         "MAX_CONTENT_LENGTH": int(os.environ.get("MAX_CONTENT_LENGTH", "16777216")),
         "UPLOAD_FOLDER": os.environ.get("UPLOAD_FOLDER", "storage/uploads"),
         "MODEL_FOLDER": os.environ.get("MODEL_FOLDER", "storage/models"),
+        "LEXICON_FOLDER": os.environ.get("LEXICON_FOLDER", "storage/lexicon"),
         "SESSION_COOKIE_HTTPONLY": True,
         "SESSION_COOKIE_SAMESITE": "Lax",
         "SESSION_COOKIE_SECURE": os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "true",

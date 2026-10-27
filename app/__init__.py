@@ -11,6 +11,7 @@ from app.routes.auth import bp as auth_bp
 from app.routes.pages import bp as pages_bp
 from app.routes.datasets import bp as datasets_bp
 from app.routes.preprocessing import bp as preprocessing_bp
+from app.routes.admin_datasets import bp as admin_datasets_bp
 from app.routes.classification import bp as classification_bp
 from app.routes.testing import bp as testing_bp
 from app.cli import create_superadmin
@@ -34,6 +35,7 @@ def create_app():
     app.register_blueprint(pages_bp)
     app.register_blueprint(datasets_bp)
     app.register_blueprint(preprocessing_bp)
+    app.register_blueprint(admin_datasets_bp)
     app.register_blueprint(classification_bp)
     app.register_blueprint(testing_bp)
     app.cli.add_command(create_superadmin)

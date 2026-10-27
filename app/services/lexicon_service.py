@@ -1,13 +1,54 @@
 """Conservative lexicon annotation; uncertainty requires human review."""
+import hashlib
 import re
 import csv
 from pathlib import Path
 
 INSET_VERSION = "InSet@9cb9d2971c575d64f4f0ed13c35048095f072a5b"
 
+# SHA-256 of the two InSet files at the commit above; recorded in
+# docs/lexicon_source.md. A mismatch means the dictionary is not the one the
+# experiments were documented against.
+EXPECTED_SHA256 = {
+    "positive.tsv": "4d0dc2a6b2fe88a438fe5a61663f45c5cf60ebaeb019d4ca4d31c3315121c2ae",
+    "negative.tsv": "b8d4b231077967d07ae07014b9dcea255301c2b17a2452c215e3d810a4ba3be4",
+}
+
+
+class LexiconError(ValueError):
+    """Raised when the dictionary is missing, unreadable or not the pinned file."""
+
+
+def _sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(65536), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def verify_inset(folder):
+    """Return a list of problems; empty list means the folder is usable."""
+    root = Path(folder)
+    if not root.is_dir():
+        return [f"Folder kamus tidak ditemukan: {root}"]
+    problems = []
+    for name, expected in EXPECTED_SHA256.items():
+        path = root / name
+        if not path.is_file():
+            problems.append(f"Berkas {name} tidak ada di {root}")
+            continue
+        actual = _sha256(path)
+        if actual != expected:
+            problems.append(f"SHA-256 {name} tidak cocok (dapat {actual[:12]}…)")
+    return problems
+
 
 def load_inset(folder):
     """Load private InSet TSV files; conflicting words are left for review."""
+    problems = verify_inset(folder)
+    if problems:
+        raise LexiconError("; ".join(problems))
     positive = {}
     negative = {}
     for name, target in (("positive.tsv", positive), ("negative.tsv", negative)):

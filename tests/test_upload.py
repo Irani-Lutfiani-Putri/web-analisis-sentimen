@@ -14,6 +14,8 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setenv("DATABASE_URL", os.environ["TEST_DATABASE_URL"])
     monkeypatch.setenv("SECRET_KEY", "test-secret")
     monkeypatch.setenv("UPLOAD_FOLDER", str(tmp_path / "uploads"))
+    # Empty lexicon folder: these tests cover the import path without auto-labeling.
+    monkeypatch.setenv("LEXICON_FOLDER", str(tmp_path / "lexicon-empty"))
     app = create_app()
     app.config.update(TESTING=True)
     with app.app_context():

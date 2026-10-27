@@ -5,44 +5,50 @@ from flask_login import current_user, login_required
 from app.extensions import db
 from app.models import Comment, Dataset
 from app.routes.auth import superadmin_required
-from app.services.lexicon_service import INSET_VERSION, annotate_dataset, load_inset, update_manual_label
+from app.services.comment_query import (
+    PAGE_SIZE, filter_options, format_score, label_counts, normalize_filter, owned_dataset,
+    paginate, pending_review_count,
+)
+from app.services.holdout_service import HoldoutError, set_holdout, summary as holdout_summary
+from app.services.lexicon_service import (
+    INSET_VERSION, LexiconError, annotate_dataset, load_inset, update_manual_label,
+)
 from app.services.preprocessing_service import process_dataset
 from app.services import job_service
 
 bp = Blueprint('preprocessing', __name__)
 
-PAGE_SIZE = 25
-LABEL_FILTERS = {'positif': 'Positif', 'negatif': 'Negatif', 'netral': 'Netral'}
-FILTER_KEYS = {'semua', 'review', 'manual', 'lexicon', *LABEL_FILTERS}
 
+def _index_context(dataset, q, label, page_arg):
+    """Everything the preprocessing template needs; shared by index and error paths."""
+    comments, total_filtered, page, total_pages = [], 0, 1, 1
+    total_comments, counts, comparisons, pending = 0, {}, [], 0
+    role = current_user.role
+    datasets = db.session.execute(db.select(Dataset).filter_by(user_id=current_user.id)
+                                  .order_by(Dataset.id.desc()).limit(20)).scalars().all()
+    if dataset:
+        comments, total_filtered, page, total_pages = paginate(dataset.id, q, label, role, page_arg)
+        total_comments = db.session.scalar(db.select(db.func.count(Comment.id)).filter(Comment.dataset_id == dataset.id))
+        counts = label_counts(dataset.id)
+        pending = pending_review_count(dataset.id)
+        comparisons = [{'original': c.comment_text, 'cleaned': c.cleaned_text} for c in comments if c.cleaned_text is not None]
 
-def _format_score(value):
-    if value is None:
-        return None
-    number = float(value)
-    return f"{int(number)}" if number.is_integer() else f"{number:.2f}"
-
-
-def _filtered_query(dataset_id, q, label):
-    query = db.select(Comment).filter(Comment.dataset_id == dataset_id)
-    if q:
-        query = query.filter(Comment.comment_text.like(f"%{q}%"))
-    if label == 'review':
-        query = query.filter(Comment.review_status == 'review')
-    elif label == 'manual':
-        query = query.filter(Comment.label_source == 'manual')
-    elif label == 'lexicon':
-        query = query.filter(Comment.label_source == 'lexicon')
-    elif label in LABEL_FILTERS:
-        query = query.filter(Comment.sentiment_label == LABEL_FILTERS[label])
-    return query
-
-
-def owned_dataset(dataset_id):
-    dataset = db.session.get(Dataset, dataset_id) if dataset_id else None
-    if not dataset or dataset.user_id != current_user.id:
-        abort(404)
-    return dataset
+    safe_comments = [{'id': c.id, 'text': c.comment_text, 'label': c.sentiment_label} for c in comments]
+    if role == 'superadmin':
+        for item, c in zip(safe_comments, comments):
+            item.update(score=format_score(c.lexicon_score), source=c.label_source, review=c.review_status,
+                        manual=c.manual_label, holdout=c.is_independent_holdout,
+                        eligible=not c.is_independent_holdout and c.manual_label is not None
+                        and c.label_source == 'manual' and c.sentiment_label == c.manual_label)
+    return {
+        'dataset': dataset, 'comments': safe_comments, 'comparisons': comparisons,
+        'total_comments': total_comments, 'label_counts': counts, 'datasets': datasets,
+        'q': q, 'label': label, 'page': page, 'total_pages': total_pages,
+        'total_filtered': total_filtered, 'page_size': PAGE_SIZE,
+        'holdout': holdout_summary(dataset.id) if dataset else None,
+        'filter_options': filter_options(role), 'is_superadmin': role == 'superadmin',
+        'pending_review': pending,
+    }
 
 
 @bp.get('/preprocessing')
@@ -52,45 +58,29 @@ def index():
     requested_id = request.args.get('dataset_id', type=int)
     dataset = next((d for d in datasets if d.id == requested_id), None) or (datasets[0] if datasets else None)
     q = (request.args.get('q') or '').strip()[:100]
-    label = request.args.get('label') or 'semua'
-    if label not in FILTER_KEYS:
-        label = 'semua'
-
-    comments, total_filtered, page, total_pages = [], 0, 1, 1
-    total_comments, label_counts, comparisons = 0, {}, []
-    if dataset:
-        base = _filtered_query(dataset.id, q, label)
-        total_filtered = db.session.scalar(db.select(db.func.count()).select_from(base.subquery()))
-        total_pages = max(1, -(-total_filtered // PAGE_SIZE))
-        page = min(max(request.args.get('page', type=int) or 1, 1), total_pages)
-        comments = db.session.execute(
-            base.order_by(Comment.row_number).offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE)
-        ).scalars().all()
-        total_comments = db.session.scalar(db.select(db.func.count(Comment.id)).filter(Comment.dataset_id == dataset.id))
-        label_counts = dict(db.session.execute(
-            db.select(Comment.sentiment_label, db.func.count(Comment.id))
-            .filter(Comment.dataset_id == dataset.id, Comment.sentiment_label.is_not(None))
-            .group_by(Comment.sentiment_label)).all())
-        comparisons = [{'original': c.comment_text, 'cleaned': c.cleaned_text} for c in comments if c.cleaned_text is not None]
-
-    safe_comments = [{'id': c.id, 'text': c.comment_text, 'label': c.sentiment_label} for c in comments]
-    if current_user.role == 'superadmin':
-        for item, c in zip(safe_comments, comments):
-            item.update(score=_format_score(c.lexicon_score), source=c.label_source, review=c.review_status)
-    return render_template('preprocessing/index.html', dataset=dataset, comments=safe_comments, comparisons=comparisons,
-                           total_comments=total_comments, label_counts=label_counts, datasets=datasets,
-                           q=q, label=label, page=page, total_pages=total_pages, total_filtered=total_filtered,
-                           page_size=PAGE_SIZE)
+    label = normalize_filter(request.args.get('label') or 'semua', current_user.role)
+    context = _index_context(dataset, q, label, request.args.get('page', type=int))
+    context['holdout_error'] = request.args.get('holdout_error')
+    context['job_id'] = request.args.get('job')
+    return render_template('preprocessing/index.html', **context)
 
 
 @bp.post('/preprocessing/lexicon/run')
 @login_required
 def run_lexicon():
     dataset = owned_dataset(request.form.get('dataset_id', type=int))
+    folder = Path(current_app.config['LEXICON_FOLDER']).resolve()
     try:
-        weights, collisions = load_inset(Path('storage/lexicon'))
-    except (OSError, ValueError, KeyError):
-        return 'Kamus lexicon tidak tersedia atau tidak valid', 503
+        weights, collisions = load_inset(folder)
+    except LexiconError as exc:
+        current_app.logger.warning('Lexicon unavailable: %s', exc)
+        return render_template('preprocessing/index.html',
+                               lexicon_error=str(exc), **_index_context(dataset, '', 'semua', 1)), 503
+    except (OSError, ValueError, KeyError) as exc:
+        current_app.logger.warning('Lexicon unreadable: %s', exc)
+        return render_template('preprocessing/index.html',
+                               lexicon_error='Kamus lexicon tidak dapat dibaca',
+                               **_index_context(dataset, '', 'semua', 1)), 503
     job_id = job_service.create_job('lexicon', dataset.id)
     dataset_id = dataset.id
 
@@ -134,6 +124,31 @@ def label_details():
     return jsonify([{'id': c.id, 'label_source': c.label_source, 'lexicon_score': str(c.lexicon_score) if c.lexicon_score is not None else None,
                      'labeled_by': c.labeled_by, 'labeled_at': c.labeled_at.isoformat() if c.labeled_at else None,
                      'label_note': c.label_note} for c in comments])
+
+
+@bp.post('/preprocessing/labels/holdout')
+@superadmin_required
+def set_holdout_flag():
+    """Flag/unflag an independent manual test row (Superadmin only)."""
+    comment = db.session.get(Comment, request.form.get('comment_id', type=int))
+    if not comment:
+        abort(404)
+    dataset = owned_dataset(comment.dataset_id)
+    value = request.form.get('value') == '1'
+    try:
+        set_holdout(comment, current_user.id, value)
+    except PermissionError:
+        abort(403)
+    except HoldoutError as exc:
+        return redirect(url_for('preprocessing.index', dataset_id=dataset.id,
+                                q=request.form.get('q') or None,
+                                label=request.form.get('label_filter') or None,
+                                page=request.form.get('page') or None,
+                                holdout_error=str(exc)))
+    return redirect(url_for('preprocessing.index', dataset_id=dataset.id,
+                            q=request.form.get('q') or None,
+                            label=request.form.get('label_filter') or None,
+                            page=request.form.get('page') or None))
 
 
 @bp.post('/preprocessing/labels/manual')

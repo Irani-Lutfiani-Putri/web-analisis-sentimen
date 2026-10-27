@@ -67,6 +67,8 @@ def test_admin_can_review_and_history_is_recorded(setup):
 
 def test_admin_can_label_owned_comment(setup):
     from app.models import LabelHistory
+    import re as _re
+    import time as _time
     app, _, _ = setup
     with app.app_context():
         admin = db.session.execute(db.select(User).filter_by(role='superadmin')).scalar_one()
@@ -85,6 +87,17 @@ def test_admin_can_label_owned_comment(setup):
     assert client.get(f'/preprocessing/labels/details?dataset_id={dataset_id}').status_code == 200
     lexicon = client.post('/preprocessing/lexicon/run', data={'csrf_token': token, 'dataset_id': dataset_id})
     assert lexicon.status_code == 302
+    # Lexicon runs in a background job; wait for it before asserting results.
+    job = _re.search(r'job=([0-9a-f]{32})', lexicon.headers.get('Location', ''))
+    assert job, lexicon.headers.get('Location')
+    deadline = _time.time() + 60
+    status = {}
+    while _time.time() < deadline:
+        status = client.get(f'/preprocessing/jobs/{job.group(1)}').get_json() or {}
+        if status.get('status') in ('completed', 'failed'):
+            break
+        _time.sleep(0.5)
+    assert status.get('status') == 'completed', status
     with app.app_context():
         annotated = db.session.get(Comment, comment_id)
         assert annotated.lexicon_version is not None
