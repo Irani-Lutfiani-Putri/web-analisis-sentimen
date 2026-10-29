@@ -46,3 +46,105 @@ tbody tr:hover{background:var(--color-primary-tint)}
 .error-summary{border:1px solid #A64040;background:#FFF4F4;color:#671B1B;padding:14px;border-radius:6px;margin-bottom:16px}.error-summary ul{margin:8px 0 0;padding-left:20px}.error-summary a{color:inherit;font-weight:700}.field-error{color:#8B1F1F!important;font-size:.875rem;margin:-8px 0 12px}[aria-invalid=true]{border-color:#A64040!important;box-shadow:0 0 0 3px rgba(166,64,64,.12)!important}
 /* Login-only surface: pink header separates public navigation, while the white page keeps the form calm. */
 .login-page{background:#FFF}.login-page .public-header{background:var(--color-pink-blush);border-bottom-color:var(--color-primary-soft)}.login-page .public-login-link{min-width:88px;padding:9px 20px;justify-content:center;background:var(--color-primary);border:1px solid var(--color-primary);border-radius:6px;color:var(--color-text);font-weight:700}.login-page .public-login-link:hover{background:var(--color-primary-hover);border-color:var(--color-primary-hover);color:#FFF;box-shadow:var(--shadow-brand)}.login-page .public-login-link:active{background:var(--color-primary-active);border-color:var(--color-primary-active);color:#FFF;box-shadow:none;transform:translateY(1px)}.login-page .login-card{box-shadow:0 14px 30px rgba(23,27,32,.14),0 4px 10px rgba(241,62,147,.10)}.login-page .login-card form{margin-bottom:0}
+
+
+/* Design refresh: warm pastel palette, restrained pink accents, and accessible motion. */
+:root{
+  --color-primary:#F52D70;
+  --color-primary-soft:#FF8D9F;
+  --color-primary-hover:#DE1F60;
+  --color-primary-active:#C92760;
+  --color-primary-tint:rgba(245,45,112,.09);
+  --color-primary-border:rgba(245,45,112,.25);
+  --color-text:#17191F;
+  --color-muted:#77747A;
+  --color-surface:#FFFFFF;
+  --color-page:#FFF5F3;
+  --color-border:#F1E4E2;
+  --color-peach:#FBD9CE;
+  --color-coral:#FF8D9F;
+  --color-orange:#FFC18C;
+  --focus:#F52D70;
+  --shadow-brand:0 8px 22px rgba(245,45,112,.18);
+  --shadow-soft:0 8px 24px rgba(76,42,48,.08);
+  --motion-fast:150ms;
+  --motion-normal:220ms;
+  --motion-slow:360ms;
+  --ease-standard:cubic-bezier(.2,0,0,1);
+  --ink:var(--color-text);
+  --muted:var(--color-muted);
+  --line:var(--color-border);
+  --paper:var(--color-page);
+  --white:var(--color-surface);
+}
+html{scroll-behavior:smooth}
+body{font-family:"Inter",Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#FFF8F6 0%,#FFF5F3 62%,#FCE4DF 100%);color:var(--ink)}
+h1,h2,h3,h4,.brand,.dashboard-card strong{font-family:"Inter",Arial,Helvetica,sans-serif}
+h1,h2,h3{letter-spacing:-.035em}
+a,button,input,select,textarea,.panel,.dashboard-card,.auth-card,.steps li,.page-link{transition:color var(--motion-normal) var(--ease-standard),background-color var(--motion-normal) var(--ease-standard),border-color var(--motion-normal) var(--ease-standard),box-shadow var(--motion-normal) var(--ease-standard),transform var(--motion-normal) var(--ease-standard)}
+.public-header{background:rgba(255,255,255,.88);border-bottom-color:rgba(241,228,226,.9);backdrop-filter:blur(12px)}
+.brand{letter-spacing:-.015em}
+nav a{border-radius:9px}
+.public-header nav a:hover{color:var(--color-primary);text-decoration:none}
+.sidebar{background:rgba(255,255,255,.92);border-right-color:var(--line)}
+.sidebar nav a{min-height:44px;padding:8px 12px;color:var(--muted);text-decoration:none}
+.sidebar nav a:hover{background:var(--color-primary-tint);color:var(--color-primary);transform:translateX(2px)}
+.sidebar nav a[aria-current=page]{background:var(--color-primary);color:#fff;box-shadow:var(--shadow-brand)}
+.sidebar nav a[aria-current=page]:hover{background:var(--color-primary-hover);color:#fff}
+.content{animation:content-enter 420ms var(--ease-standard) both}
+.page-header{animation:content-enter 460ms var(--ease-standard) both}
+.page-header .kicker{color:var(--color-primary)}
+.button{background:var(--color-primary);border-color:var(--color-primary);color:#fff;border-radius:10px;box-shadow:0 3px 8px rgba(245,45,112,.10)}
+.button:hover{background:var(--color-primary-hover);border-color:var(--color-primary-hover);color:#fff;box-shadow:var(--shadow-brand);transform:translateY(-2px)}
+.button:active{background:var(--color-primary-active);border-color:var(--color-primary-active);box-shadow:none;transform:translateY(0) scale(.985)}
+.button:focus-visible,.text-button:focus-visible,.dialog-close:focus-visible,.page-link:focus-visible{outline:3px solid rgba(245,45,112,.35);outline-offset:3px}
+.panel,.auth-card,.dashboard-card{border-color:rgba(241,228,226,.95);border-radius:16px;box-shadow:0 2px 8px rgba(76,42,48,.025)}
+.panel{background:rgba(255,255,255,.96)}
+.panel:hover{border-color:rgba(245,45,112,.18)}
+.auth-card{box-shadow:var(--shadow-soft)}
+.dashboard-card{position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(76,42,48,.04)}
+.dashboard-card::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,var(--color-primary),var(--color-coral),var(--color-orange));opacity:0;transition:opacity var(--motion-normal) var(--ease-standard)}
+.dashboard-card:hover{transform:translateY(-4px);border-color:var(--color-primary-border);box-shadow:0 12px 28px rgba(76,42,48,.09)}
+.dashboard-card:hover::before{opacity:1}
+.dashboard-card:nth-child(1){animation:card-enter 420ms 40ms var(--ease-standard) both}
+.dashboard-card:nth-child(2){animation:card-enter 420ms 90ms var(--ease-standard) both}
+.dashboard-card:nth-child(3){animation:card-enter 420ms 140ms var(--ease-standard) both}
+.dashboard-card:nth-child(4){animation:card-enter 420ms 190ms var(--ease-standard) both}
+.dashboard-card p{color:var(--muted)}
+.dashboard-card strong{font-variant-numeric:tabular-nums}
+.kicker{letter-spacing:.07em}
+input,select,textarea,.filters input,.filters select,.auth-card input,.panel form input{border-color:#E7D8D7;border-radius:9px;background:#fff}
+input:hover,select:hover,textarea:hover{border-color:#E5A6B9}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--color-primary);box-shadow:0 0 0 4px var(--color-primary-tint)}
+.notice{border-color:var(--color-primary-border);background:#FFF5F8;border-radius:10px}
+.filters{background:#FFFAF9;border-color:var(--line);border-radius:12px}
+.page-link{border-color:#E7D8D7;border-radius:9px;background:#fff}
+.page-link:hover:not([aria-disabled=true]){border-color:var(--color-primary);color:var(--color-primary);background:#FFF5F8;transform:translateY(-1px)}
+thead th{background:#FFF2F3;border-bottom-color:#F1C6D2;color:#6D4350}
+tbody tr:nth-child(even){background:#FFFAF9}
+tbody tr:hover{background:#FFF0F4}
+td,th{border-bottom-color:#F1E8E6}
+.steps li{border-color:var(--line);border-radius:10px;background:#fff}
+.steps li:hover{border-color:var(--color-primary-border);background:#FFF5F8;transform:translateY(-2px)}
+.progress-dialog,.upload-dialog{border-color:var(--line);border-radius:18px;box-shadow:0 24px 70px rgba(76,42,48,.2)}
+.progress-dialog[open],.upload-dialog[open]{animation:dialog-enter 220ms var(--ease-standard) both}
+.progress-dialog progress{accent-color:var(--color-primary)}
+.dialog-close:hover{background:#FFF0F4;color:var(--color-primary);border-color:var(--color-primary-border);transform:rotate(3deg)}
+.dialog-actions button:not(.button):hover{background:#FFF5F8;border-color:var(--color-primary-border)}
+.chart-wrap{border-radius:12px}
+.chart-fallback li{padding:4px 9px;border-radius:999px;background:#FFF5F8}
+.hero .button{margin-top:8px}
+.public-login-link{border-radius:10px}
+.public-login-link:hover{color:var(--color-primary)}
+table a:hover{color:var(--color-primary)}
+@keyframes content-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes card-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:760px){
+  .sidebar nav a:hover{transform:none}
+  .dashboard-card:hover{transform:translateY(-2px)}
+  .content,.page-header{animation-duration:260ms}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .content,.page-header,.dashboard-card{animation:none!important}
+}
