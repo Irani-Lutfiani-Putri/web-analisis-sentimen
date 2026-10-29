@@ -18,6 +18,26 @@ def test_public_navigation_and_mobile_layout():
             page.get_by_role('link', name='Mulai Analisis').click()
             assert page.url.endswith('/login')
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+            login_styles = page.evaluate("""() => {
+                const header = getComputedStyle(document.querySelector('.public-header'));
+                const body = getComputedStyle(document.body);
+                const button = getComputedStyle(document.querySelector('.public-login-link'));
+                const card = getComputedStyle(document.querySelector('.login-card'));
+                return {
+                    headerBackground: header.backgroundColor,
+                    bodyBackground: body.backgroundColor,
+                    buttonBackground: button.backgroundColor,
+                    buttonMinHeight: button.minHeight,
+                    cardShadow: card.boxShadow,
+                    registerPrompt: document.body.textContent.includes('Belum punya akun?'),
+                };
+            }""")
+            assert login_styles['headerBackground'] == 'rgb(249, 208, 205)'
+            assert login_styles['bodyBackground'] == 'rgb(255, 255, 255)'
+            assert login_styles['buttonBackground'] == 'rgb(241, 62, 147)'
+            assert float(login_styles['buttonMinHeight'].removesuffix('px')) >= 44
+            assert login_styles['cardShadow'] != 'none'
+            assert login_styles['registerPrompt'] is False
             page.locator('#email').fill('invalid')
             page.locator('#password').evaluate("input => input.removeAttribute('required')")
             with page.expect_navigation():
@@ -28,7 +48,7 @@ def test_public_navigation_and_mobile_layout():
             assert page.locator('#password').get_attribute('aria-invalid') == 'true'
             assert page.locator('[data-error-summary]').evaluate('node => node === document.activeElement')
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
-            page.get_by_role('link', name='Daftar').click()
+            page.goto(base + '/register')
             assert page.url.endswith('/register')
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
             page.close()
