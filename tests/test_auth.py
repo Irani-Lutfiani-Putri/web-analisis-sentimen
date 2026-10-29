@@ -31,11 +31,56 @@ def test_register_ignores_submitted_admin_role_and_hashes_password(client):
         assert user.check_password("rahasia-kuat-123")
 
 
+def test_register_renders_field_specific_errors(client):
+    response = client.post('/register', data={
+        'full_name': '', 'email': 'invalid', 'password': 'short'
+    })
+    assert response.status_code == 400
+    assert b'id="full_name-error"' in response.data
+    assert b'id="email-error"' in response.data
+    assert b'id="password-error"' in response.data
+    assert b'aria-invalid="true"' in response.data
+
+
+def test_duplicate_email_error_stays_on_email_field(client):
+    payload = {'full_name': 'Peneliti', 'email': 'duplikat@example.test', 'password': 'rahasia-kuat-123'}
+    assert client.post('/register', data=payload).status_code == 302
+    response = client.post('/register', data=payload)
+    assert response.status_code == 409
+    assert b'id="email-error"' in response.data
+    assert b'value="duplikat@example.test"' in response.data
+
+
+def test_login_error_is_attached_to_password_without_account_disclosure(client):
+    response = client.post('/login', data={'email': 'unknown@example.test', 'password': 'wrong'})
+    assert response.status_code == 401
+    assert b'id="password-error"' in response.data
+    assert b'Email atau password salah' in response.data
+    assert b'value="unknown@example.test"' in response.data
+    assert b'value="wrong"' not in response.data
+
+
+def test_login_required_fields_render_on_their_own_inputs(client):
+    response = client.post('/login', data={'email': 'invalid', 'password': ''})
+    assert response.status_code == 400
+    assert b'id="email-error"' in response.data
+    assert b'id="password-error"' in response.data
+    assert response.data.count(b'aria-invalid="true"') == 2
+
+
 def test_login_and_logout_session(client):
     client.post("/register", data={"full_name":"Peneliti", "email":"peneliti@example.test", "password":"rahasia-kuat-123"})
     assert client.post("/login", data={"email":"peneliti@example.test", "password":"wrong"}).status_code == 401
-    assert client.post("/login", data={"email":"peneliti@example.test", "password":"rahasia-kuat-123"}).status_code == 302
-    assert client.get("/dashboard").status_code == 200
+    login = client.post("/login", data={"email":"peneliti@example.test", "password":"rahasia-kuat-123"})
+    assert login.status_code == 302
+    assert login.location.endswith("/dashboard?upload=1")
+    landing = client.get(login.location)
+    assert landing.status_code == 200
+    assert b'id="upload-dataset-dialog"' in landing.data
+    assert b'data-auto-open' in landing.data
+    normal_dashboard = client.get("/dashboard")
+    assert normal_dashboard.status_code == 200
+    assert b'data-auto-open' not in normal_dashboard.data
     assert client.post("/logout").status_code == 302
     assert client.get("/dashboard").status_code == 302
 

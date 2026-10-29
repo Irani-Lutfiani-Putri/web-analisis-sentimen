@@ -18,6 +18,16 @@ def test_public_navigation_and_mobile_layout():
             page.get_by_role('link', name='Mulai Analisis').click()
             assert page.url.endswith('/login')
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
+            page.locator('#email').fill('invalid')
+            page.locator('#password').evaluate("input => input.removeAttribute('required')")
+            with page.expect_navigation():
+                page.locator('form').evaluate('form => form.requestSubmit()')
+            assert page.locator('#email-error').is_visible()
+            assert page.locator('#password-error').is_visible()
+            assert page.locator('#email').get_attribute('aria-invalid') == 'true'
+            assert page.locator('#password').get_attribute('aria-invalid') == 'true'
+            assert page.locator('[data-error-summary]').evaluate('node => node === document.activeElement')
+            assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
             page.get_by_role('link', name='Daftar').click()
             assert page.url.endswith('/register')
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')

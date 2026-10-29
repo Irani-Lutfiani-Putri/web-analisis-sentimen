@@ -24,8 +24,15 @@ def test_invalid_utf8_rejected():
 
 
 def test_missing_comment_column_rejected():
-    with pytest.raises(DatasetError, match='Kolom komentar'):
+    with pytest.raises(DatasetError, match='Kolom komentar') as caught:
         parse_csv(io.BytesIO(b'isi\nTeks'), 'komentar', None)
+    assert caught.value.field == 'comment_column'
+
+
+def test_invalid_utf8_identifies_file_field():
+    with pytest.raises(DatasetError) as caught:
+        parse_csv(io.BytesIO(b'isi\n\xff'), 'isi', None)
+    assert caught.value.field == 'file'
 
 
 def test_empty_and_invalid_label_rows_reported():

@@ -3,8 +3,8 @@ from flask import Blueprint, abort, redirect, request, url_for, render_template
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy.exc import IntegrityError
 from app.extensions import db
-from app.models import User, Dataset, Comment
-from sqlalchemy import func
+from app.models import User
+from app.services.dashboard_service import dashboard_context
 
 bp = Blueprint("auth", __name__)
 
@@ -24,8 +24,21 @@ def register():
     name = request.form.get("full_name", "").strip()
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
-    if not name or len(name) > 150 or len(email) > 255 or "@" not in email or len(password) < 12:
-        return "Data registrasi tidak valid", 400
+    field_errors = {}
+    if not name:
+        field_errors["full_name"] = "Nama lengkap wajib diisi."
+    elif len(name) > 150:
+        field_errors["full_name"] = "Nama lengkap maksimal 150 karakter."
+    if not email or "@" not in email or len(email) > 255:
+        field_errors["email"] = "Masukkan alamat email yang valid."
+    if len(password) < 12:
+        field_errors["password"] = "Password minimal 12 karakter."
+    if field_errors:
+        return render_template(
+            "auth/register.html",
+            field_errors=field_errors,
+            form_values={"full_name": name, "email": email},
+        ), 400
     user = User(full_name=name, email=email, role="user")
     user.set_password(password)
     db.session.add(user)
@@ -33,7 +46,11 @@ def register():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return "Email telah terdaftar", 409
+        return render_template(
+            "auth/register.html",
+            field_errors={"email": "Email telah terdaftar."},
+            form_values={"full_name": name, "email": email},
+        ), 409
     return redirect(url_for("auth.login_hint"))
 
 
@@ -51,22 +68,34 @@ def login_hint():
 def login():
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
+    field_errors = {}
+    if not email or "@" not in email or len(email) > 255:
+        field_errors["email"] = "Masukkan alamat email yang valid."
+    if not password:
+        field_errors["password"] = "Password wajib diisi."
+    if field_errors:
+        return render_template(
+            "auth/login.html",
+            field_errors=field_errors,
+            form_values={"email": email},
+        ), 400
     user = db.session.execute(db.select(User).filter_by(email=email)).scalar_one_or_none()
     if not user or not user.check_password(password):
-        return "Email atau password salah", 401
+        return render_template(
+            "auth/login.html",
+            field_errors={"password": "Email atau password salah."},
+            form_values={"email": email},
+        ), 401
     login_user(user)
-    return redirect(url_for("auth.dashboard"))
+    return redirect(url_for("auth.dashboard", upload=1))
 
 
 @bp.get("/dashboard")
 @login_required
 def dashboard():
-    dataset = db.session.execute(db.select(Dataset).filter_by(user_id=current_user.id).order_by(Dataset.id.desc())).scalars().first()
-    count = db.session.scalar(db.select(func.count(Comment.id)).filter_by(dataset_id=dataset.id)) if dataset else None
-    labels = {}
-    if dataset:
-        labels = dict(db.session.execute(db.select(Comment.sentiment_label, func.count(Comment.id)).filter(Comment.dataset_id == dataset.id, Comment.sentiment_label.is_not(None)).group_by(Comment.sentiment_label)).all())
-    return render_template("dashboard/index.html", dataset=dataset, count=count, labels=labels)
+    context = dashboard_context(current_user.id)
+    context['upload_modal_open'] = request.args.get('upload') == '1'
+    return render_template("dashboard/index.html", **context)
 
 
 @bp.post("/logout")

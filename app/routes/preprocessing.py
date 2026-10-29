@@ -19,7 +19,7 @@ from app.services import job_service
 bp = Blueprint('preprocessing', __name__)
 
 
-def _index_context(dataset, q, label, page_arg):
+def _index_context(dataset, q, label, page_arg, **extra):
     """Everything the preprocessing template needs; shared by index and error paths."""
     comments, total_filtered, page, total_pages = [], 0, 1, 1
     total_comments, counts, comparisons, pending = 0, {}, [], 0
@@ -31,7 +31,14 @@ def _index_context(dataset, q, label, page_arg):
         total_comments = db.session.scalar(db.select(db.func.count(Comment.id)).filter(Comment.dataset_id == dataset.id))
         counts = label_counts(dataset.id)
         pending = pending_review_count(dataset.id)
-        comparisons = [{'original': c.comment_text, 'cleaned': c.cleaned_text} for c in comments if c.cleaned_text is not None]
+        comparisons = [
+            {
+                'original': c.comment_text,
+                'cleaned': c.cleaned_text,
+                'label': c.sentiment_label or 'Perlu review',
+            }
+            for c in comments if c.cleaned_text is not None
+        ]
 
     safe_comments = [{'id': c.id, 'text': c.comment_text, 'label': c.sentiment_label} for c in comments]
     if role == 'superadmin':
@@ -40,7 +47,7 @@ def _index_context(dataset, q, label, page_arg):
                         manual=c.manual_label, holdout=c.is_independent_holdout,
                         eligible=not c.is_independent_holdout and c.manual_label is not None
                         and c.label_source == 'manual' and c.sentiment_label == c.manual_label)
-    return {
+    context = {
         'dataset': dataset, 'comments': safe_comments, 'comparisons': comparisons,
         'total_comments': total_comments, 'label_counts': counts, 'datasets': datasets,
         'q': q, 'label': label, 'page': page, 'total_pages': total_pages,
@@ -49,6 +56,8 @@ def _index_context(dataset, q, label, page_arg):
         'filter_options': filter_options(role), 'is_superadmin': role == 'superadmin',
         'pending_review': pending,
     }
+    context.update(extra)
+    return context
 
 
 @bp.get('/preprocessing')
@@ -157,11 +166,18 @@ def manual_label():
     comment = db.session.get(Comment, request.form.get('comment_id', type=int))
     if not comment:
         abort(404)
-    owned_dataset(comment.dataset_id)
+    dataset = owned_dataset(comment.dataset_id)
     try:
         update_manual_label(comment, request.form.get('label'), current_user.id, request.form.get('note'))
     except ValueError:
-        return 'Label tidak valid', 400
+        q = (request.form.get('q') or '').strip()[:100]
+        label = normalize_filter(request.form.get('label_filter') or 'semua', current_user.role)
+        context = _index_context(
+            dataset, q, label, request.form.get('page', type=int),
+            manual_error='Label tidak valid. Pilih Positif, Negatif, atau Netral.',
+            error_comment_id=comment.id,
+        )
+        return render_template('preprocessing/index.html', **context), 400
     return redirect(url_for('preprocessing.index', dataset_id=comment.dataset_id,
                             q=request.form.get('q') or None,
                             label=request.form.get('label_filter') or None,

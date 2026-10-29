@@ -27,6 +27,12 @@ def token_for(client):
     return URLSafeTimedSerializer(client.application.secret_key, salt="wtf-csrf-token").dumps("page-test-nonce")
 
 
+def test_shared_field_error_assets_are_loaded(app_client):
+    response = app_client.get('/login')
+    assert response.status_code == 200
+    assert b'/static/js/form-errors.js' in response.data
+
+
 def test_public_pages_render_with_real_links(app_client):
     for path in ("/", "/login", "/register"):
         response = app_client.get(path)
@@ -53,6 +59,7 @@ def test_private_pages_render_after_login_and_no_fake_numbers(app_client):
         assert b'href="/preprocessing"' in response.data
         assert b'href="/classification"' in response.data
         assert b'href="/testing"' in response.data
+        assert b'href="/datasets/upload"' not in response.data
         assert b'href="/lexicon"' not in response.data
     assert b"Belum ada dataset aktif" in app_client.get("/dashboard").data
     assert app_client.post("/logout", data={"csrf_token":csrf}).status_code == 302

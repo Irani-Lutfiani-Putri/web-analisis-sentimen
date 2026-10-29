@@ -55,6 +55,8 @@ def test_upload_rejects_missing_column(client):
     response = web.post("/datasets/upload", data={"csrf_token":token, "comment_column":"komentar", "file":(io.BytesIO(b"isi\nTambang berjalan\n"),"comments.csv")}, content_type="multipart/form-data")
     assert response.status_code == 400
     assert b"Kolom komentar" in response.data
+    assert b'id="upload_comment_column-error"' in response.data
+    assert b'aria-invalid="true"' in response.data
 
 
 def test_upload_rejects_bad_encoding(client):
@@ -62,11 +64,13 @@ def test_upload_rejects_bad_encoding(client):
     response = web.post("/datasets/upload", data={"csrf_token":token, "comment_column":"isi", "file":(io.BytesIO(b"isi\n\xff"),"comments.csv")}, content_type="multipart/form-data")
     assert response.status_code == 400
     assert b"UTF-8" in response.data
+    assert b'id="upload_file-error"' in response.data
 
 
 def test_upload_rejects_wrong_extension(client):
     web, token = client
     response = web.post("/datasets/upload", data={"csrf_token":token, "comment_column":"isi", "file":(io.BytesIO(b"isi\nTambang"),"comments.txt")}, content_type="multipart/form-data")
     assert response.status_code == 400
+    assert b'id="upload_file-error"' in response.data
     with web.application.app_context():
         assert db.session.execute(db.select(Dataset)).first() is None

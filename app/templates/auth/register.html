@@ -1,1 +1,26 @@
-{% extends 'base.html' %}{% block title %}Daftar{% endblock %}{% block public_content %}<section class="auth-card"><p class="kicker">Akses penelitian</p><h1>Daftar</h1>{% if error %}<p role="alert" class="notice">{{ error }}</p>{% endif %}<form method="post" action="{{ url_for('auth.register') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label for="full_name">Nama lengkap</label><input id="full_name" name="full_name" autocomplete="name" required maxlength="150"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required><label for="password">Password (minimal 12 karakter)</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="12" required><button type="submit" class="button">Daftar</button></form><p>Sudah punya akun? <a href="{{ url_for('auth.login_hint') }}">Masuk</a></p></section>{% endblock %}
+{% extends 'base.html' %}
+{% from '_form_errors.html' import error_summary, field_error %}
+{% block title %}Daftar{% endblock %}
+{% block public_content %}
+{% set errors = field_errors|default({}) %}
+{% set values = form_values|default({}) %}
+<section class="auth-card">
+  <p class="kicker">Akses penelitian</p>
+  <h1>Daftar</h1>
+  {{ error_summary(errors) }}
+  <form method="post" action="{{ url_for('auth.register') }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="full_name">Nama lengkap</label>
+    <input id="full_name" name="full_name" value="{{ values.get('full_name', '') }}" autocomplete="name" required maxlength="150" aria-invalid="{{ 'true' if errors.get('full_name') else 'false' }}"{% if errors.get('full_name') %} aria-describedby="full_name-error"{% endif %}>
+    {{ field_error(errors, 'full_name') }}
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" value="{{ values.get('email', '') }}" autocomplete="email" required aria-invalid="{{ 'true' if errors.get('email') else 'false' }}"{% if errors.get('email') %} aria-describedby="email-error"{% endif %}>
+    {{ field_error(errors, 'email') }}
+    <label for="password">Password (minimal 12 karakter)</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" minlength="12" required aria-invalid="{{ 'true' if errors.get('password') else 'false' }}"{% if errors.get('password') %} aria-describedby="password-error"{% endif %}>
+    {{ field_error(errors, 'password') }}
+    <button type="submit" class="button">Daftar</button>
+  </form>
+  <p>Sudah punya akun? <a href="{{ url_for('auth.login_hint') }}">Masuk</a></p>
+</section>
+{% endblock %}

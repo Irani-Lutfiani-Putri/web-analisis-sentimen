@@ -4,16 +4,18 @@ import io
 
 
 class DatasetError(ValueError):
-    pass
+    def __init__(self, message, field=None):
+        super().__init__(message)
+        self.field = field
 
 
 def parse_csv(stream, comment_column, label_column=None):
     try:
         content = stream.read().decode("utf-8-sig")
     except UnicodeDecodeError as exc:
-        raise DatasetError("Encoding CSV harus UTF-8") from exc
+        raise DatasetError("Encoding CSV harus UTF-8", field="file") from exc
     if not content.strip():
-        raise DatasetError("CSV kosong")
+        raise DatasetError("CSV kosong", field="file")
     try:
         sample = content[:8192]
         try:
@@ -23,9 +25,9 @@ def parse_csv(stream, comment_column, label_column=None):
         reader = csv.DictReader(io.StringIO(content, newline=""), dialect=dialect, strict=True)
         columns = reader.fieldnames or []
         if not comment_column or comment_column not in columns:
-            raise DatasetError("Kolom komentar tidak ditemukan; pilih kolom yang tersedia")
+            raise DatasetError("Kolom komentar tidak ditemukan; pilih kolom yang tersedia", field="comment_column")
         if label_column and label_column not in columns:
-            raise DatasetError("Kolom label tidak ditemukan")
+            raise DatasetError("Kolom label tidak ditemukan", field="label_column")
         rows = []
         rejected = 0
         for row_number, record in enumerate(reader, start=2):
@@ -36,7 +38,7 @@ def parse_csv(stream, comment_column, label_column=None):
                 continue
             rows.append((row_number, text, label or None))
     except csv.Error as exc:
-        raise DatasetError("Struktur CSV tidak valid") from exc
+        raise DatasetError("Struktur CSV tidak valid", field="file") from exc
     if not rows:
-        raise DatasetError("CSV tidak memiliki baris komentar valid")
+        raise DatasetError("CSV tidak memiliki baris komentar valid", field="file")
     return rows, {"accepted": len(rows), "rejected": rejected, "columns": columns}

@@ -55,6 +55,17 @@ def test_train_dataset_saves_real_metrics_and_reloadable_pair(records):
         assert db.session.execute(db.select(ModelRun)).scalar_one().id == run.id
 
 
+def test_training_error_renders_dataset_field(records):
+    app, owner_id, dataset_id = records
+    app.config['WTF_CSRF_ENABLED'] = False
+    client = app.test_client()
+    client.post('/login', data={'email': 'train@test.local', 'password': 'secure-password-123'})
+    response = client.post('/classification/train', data={'dataset_id': ''})
+    assert response.status_code == 400
+    assert b'id="dataset_id-error"' in response.data
+    assert b'Klasifikasi SVM' in response.data
+
+
 def test_training_and_inference_routes_with_mysql(records):
     from io import BytesIO
     app, owner_id, dataset_id = records
@@ -65,6 +76,18 @@ def test_training_and_inference_routes_with_mysql(records):
     assert client.post('/testing/single', data={'comment': 'tambang positif'}).status_code == 400
     trained = client.post('/classification/train', data={'dataset_id': dataset_id})
     assert trained.status_code == 302
+    empty_single = client.post('/testing/single', data={'comment': ''})
+    assert empty_single.status_code == 400
+    assert b'id="comment-error"' in empty_single.data
+    missing_batch = client.post('/testing/batch', data={'comment_column': ''}, content_type='multipart/form-data')
+    assert missing_batch.status_code == 400
+    assert b'id="batch_file-error"' in missing_batch.data
+    invalid_column = client.post('/testing/batch', data={
+        'comment_column': 'salah',
+        'file': (BytesIO(b'isi\ntambang positif\n'), 'uji.csv'),
+    }, content_type='multipart/form-data')
+    assert invalid_column.status_code == 400
+    assert b'id="comment_column-error"' in invalid_column.data
     page = client.get('/classification')
     assert page.status_code == 200
     assert b'Confusion matrix' in page.data

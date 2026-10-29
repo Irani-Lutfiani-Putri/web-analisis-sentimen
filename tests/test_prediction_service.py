@@ -36,7 +36,9 @@ def test_batch_counts_valid_and_rejected_rows():
 
 def test_batch_rejects_invalid_encoding_and_column():
     model, vectorizer = trained_pair()
-    with pytest.raises(PredictionError, match='UTF-8'):
+    with pytest.raises(PredictionError, match='UTF-8') as encoding_error:
         predict_batch(io.BytesIO(b'isi\n\xff'), 'isi', model, vectorizer)
-    with pytest.raises(PredictionError, match='kolom'):
+    assert encoding_error.value.field == 'file'
+    with pytest.raises(PredictionError, match='kolom') as column_error:
         predict_batch(io.BytesIO(b'isi\nkomentar'), 'teks', model, vectorizer)
+    assert column_error.value.field == 'comment_column'

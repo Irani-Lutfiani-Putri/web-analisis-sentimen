@@ -1,1 +1,23 @@
-{% extends 'base.html' %}{% block title %}Masuk{% endblock %}{% block public_content %}<section class="auth-card"><p class="kicker">Akses penelitian</p><h1>Masuk</h1>{% if error %}<p role="alert" class="notice">{{ error }}</p>{% endif %}<form method="post" action="{{ url_for('auth.login') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required><button type="submit" class="button">Masuk</button></form><p>Belum punya akun? <a href="{{ url_for('auth.register_form') }}">Daftar</a></p></section>{% endblock %}
+{% extends 'base.html' %}
+{% from '_form_errors.html' import error_summary, field_error %}
+{% block title %}Masuk{% endblock %}
+{% block public_content %}
+{% set errors = field_errors|default({}) %}
+{% set values = form_values|default({}) %}
+<section class="auth-card">
+  <p class="kicker">Akses penelitian</p>
+  <h1>Masuk</h1>
+  {{ error_summary(errors) }}
+  <form method="post" action="{{ url_for('auth.login') }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" value="{{ values.get('email', '') }}" autocomplete="email" required aria-invalid="{{ 'true' if errors.get('email') else 'false' }}"{% if errors.get('email') %} aria-describedby="email-error"{% endif %}>
+    {{ field_error(errors, 'email') }}
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required aria-invalid="{{ 'true' if errors.get('password') else 'false' }}"{% if errors.get('password') %} aria-describedby="password-error"{% endif %}>
+    {{ field_error(errors, 'password') }}
+    <button type="submit" class="button">Masuk</button>
+  </form>
+  <p>Belum punya akun? <a href="{{ url_for('auth.register_form') }}">Daftar</a></p>
+</section>
+{% endblock %}

@@ -5,7 +5,7 @@
 {% if dataset %}
 <section class="panel"><h2>Ringkasan dataset</h2>
 <form class="filters" method="get" action="{{ url_for('admin_datasets.index') }}"><label for="dataset_id">Dataset</label><select id="dataset_id" name="dataset_id">{% for item in datasets %}<option value="{{ item.id }}" {{ 'selected' if item.id == dataset.id }}>{{ item.original_filename }} (#{{ item.id }})</option>{% endfor %}</select><button type="submit" class="button" data-progress="Memuat dataset">Tampilkan</button></form>
-<p>Dataset aktif: <strong>{{ dataset.original_filename }}</strong> — {{ dataset.row_count }} baris diimpor, kolom komentar <code>{{ dataset.comment_column }}</code>. Status: {{ dataset.status }}.</p>
+<p>Dataset aktif: <strong>{{ dataset.original_filename }}</strong>. {{ dataset.row_count }} baris diimpor, kolom komentar <code>{{ dataset.comment_column }}</code>. Status: {{ dataset.status }}.</p>
 <ul class="steps"><li>Positif {{ label_counts.get('Positif', 0) }}</li><li>Negatif {{ label_counts.get('Negatif', 0) }}</li><li>Netral {{ label_counts.get('Netral', 0) }}</li><li>Perlu review {{ pending_review }}</li><li>Data uji {{ holdout.total }}</li></ul>
 {% if holdout %}<p class="result-count">Data uji independen: Positif {{ holdout.per_class['Positif'] }}, Negatif {{ holdout.per_class['Negatif'] }}, Netral {{ holdout.per_class['Netral'] }}.{% if holdout.ready %} Semua kelas terwakili, SVM dapat dilatih.{% else %} Kelas belum terwakili: {{ holdout.missing|join(', ') }}.{% endif %} {{ holdout.eligible }} komentar berlabel manual lain siap ditandai.</p>{% endif %}
 </section>

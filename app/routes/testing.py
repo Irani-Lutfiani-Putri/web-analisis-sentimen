@@ -30,7 +30,11 @@ def single():
         model, vectorizer = load_run(run, current_app.config['MODEL_FOLDER'])
         label = predict_single(text, model, vectorizer)
     except (PredictionError, TrainingError) as exc:
-        return render_template('testing/index.html', run=run, error=str(exc)), 400
+        return render_template(
+            'testing/index.html', run=run,
+            field_errors={'comment': str(exc)},
+            form_values={'comment': text},
+        ), 400
     db.session.add(Prediction(user_id=current_user.id, model_run_id=run.id, input_text=text, predicted_label=label))
     db.session.commit()
     return render_template('testing/index.html', run=run, single_label=label)
@@ -43,13 +47,27 @@ def batch():
     if not run:
         return render_template('testing/index.html', run=None, error='Latih model terlebih dahulu'), 400
     file = request.files.get('file')
+    comment_column = request.form.get('comment_column', '')
+    values = {'comment_column': comment_column}
     if not file or not file.filename or not file.filename.lower().endswith('.csv'):
-        return render_template('testing/index.html', run=run, error='Pilih berkas CSV valid'), 400
+        return render_template(
+            'testing/index.html', run=run,
+            field_errors={'batch_file': 'Pilih berkas CSV valid.'},
+            form_values=values,
+        ), 400
     try:
         model, vectorizer = load_run(run, current_app.config['MODEL_FOLDER'])
-        result = predict_batch(file.stream, request.form.get('comment_column', ''), model, vectorizer)
-    except (PredictionError, TrainingError) as exc:
-        return render_template('testing/index.html', run=run, error=str(exc)), 400
+        result = predict_batch(file.stream, comment_column, model, vectorizer)
+    except PredictionError as exc:
+        field = 'comment_column' if exc.field == 'comment_column' else 'batch_file'
+        return render_template(
+            'testing/index.html', run=run,
+            field_errors={field: str(exc)}, form_values=values,
+        ), 400
+    except TrainingError as exc:
+        return render_template(
+            'testing/index.html', run=run, error=str(exc), form_values=values,
+        ), 400
     for row in result['rows']:
         db.session.add(Prediction(user_id=current_user.id, model_run_id=run.id,
                                   input_text=row['text'], predicted_label=row['predicted_label'], row_number=row['row_number']))

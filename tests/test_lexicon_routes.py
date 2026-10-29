@@ -109,6 +109,24 @@ def test_admin_can_label_owned_comment(setup):
         assert db.session.execute(db.select(LabelHistory)).scalar_one().new_label == 'Positif'
 
 
+def test_invalid_manual_label_renders_error_on_its_row(setup):
+    app, _, _ = setup
+    with app.app_context():
+        admin = db.session.execute(db.select(User).filter_by(role='superadmin')).scalar_one()
+        dataset = Dataset(user_id=admin.id, original_filename='admin.csv', stored_filename='admin-private.csv', file_path='private', row_count=1, comment_column='isi', status='validated')
+        db.session.add(dataset); db.session.flush()
+        comment = Comment(dataset_id=dataset.id, row_number=2, comment_text='komentar uji')
+        db.session.add(comment); db.session.commit()
+        comment_id = comment.id
+    client, token = logged_in(app, 'superadmin')
+    response = client.post('/preprocessing/labels/manual', data={
+        'csrf_token': token, 'comment_id': comment_id, 'label': 'TidakValid'
+    })
+    assert response.status_code == 400
+    assert f'id="label-{comment_id}-error"'.encode() in response.data
+    assert b'Label tidak valid' in response.data
+
+
 def test_nonowner_cannot_run_lexicon_on_dataset(setup):
     app,dataset_id,_=setup
     client,token=logged_in(app,'superadmin')

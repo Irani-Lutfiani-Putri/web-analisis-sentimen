@@ -6,7 +6,9 @@ from app.services.training_service import CLASSES
 
 
 class PredictionError(ValueError):
-    pass
+    def __init__(self, message, field=None):
+        super().__init__(message)
+        self.field = field
 
 
 def predict_single(text, model, vectorizer):
@@ -22,11 +24,11 @@ def predict_batch(stream, comment_column, model, vectorizer):
     try:
         decoded = stream.read().decode('utf-8-sig')
     except UnicodeDecodeError as exc:
-        raise PredictionError('CSV harus UTF-8') from exc
+        raise PredictionError('CSV harus UTF-8', field='file') from exc
     try:
         reader = csv.DictReader(io.StringIO(decoded, newline=''), strict=True)
         if not reader.fieldnames or not comment_column or comment_column not in reader.fieldnames:
-            raise PredictionError('Pilih kolom komentar yang tersedia')
+            raise PredictionError('Pilih kolom komentar yang tersedia', field='comment_column')
         rows, rejected = [], 0
         counts = {label: 0 for label in CLASSES}
         for row_number, record in enumerate(reader, start=2):
@@ -39,5 +41,5 @@ def predict_batch(stream, comment_column, model, vectorizer):
             rows.append({'row_number': row_number, 'text': text, 'predicted_label': label})
             counts[label] += 1
     except csv.Error as exc:
-        raise PredictionError('Struktur CSV tidak valid') from exc
+        raise PredictionError('Struktur CSV tidak valid', field='file') from exc
     return {'rows': rows, 'rejected': rejected, 'counts': counts}
