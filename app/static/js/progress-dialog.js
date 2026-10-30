@@ -24,7 +24,10 @@
     bar.hidden = true;
     bar.value = 0;
     bar.max = 100;
+    // Selama proses berjalan tombol Tutup disembunyikan total, bukan sekadar
+    // disabled, sehingga dialog tidak bisa ditutup di tengah pekerjaan.
     if (closeButton) {
+      closeButton.hidden = true;
       closeButton.disabled = true;
     }
     if (!dialog.open) {
@@ -40,6 +43,7 @@
     message.textContent = text;
     bar.hidden = true;
     if (closeButton) {
+      closeButton.hidden = false;
       closeButton.disabled = false;
     }
     if (failed) {

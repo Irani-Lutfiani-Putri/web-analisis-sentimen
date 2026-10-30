@@ -1,7 +1,7 @@
 """Flask application factory. No database schema or UI in foundation stage."""
 import logging
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -30,6 +30,14 @@ def create_app():
     @app.errorhandler(413)
     def upload_too_large(error):
         return jsonify(status="error", message="Berkas terlalu besar"), 413
+
+    @app.errorhandler(404)
+    def page_not_found(error):
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def server_error(error):
+        return render_template("errors/500.html"), 500
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(pages_bp)

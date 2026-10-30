@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Halaman tidak ditemukan{% endblock %}
+{% block public_content %}
+<section class="hero error-hero">
+  <p class="kicker">Kesalahan 404</p>
+  <h1>HALAMAN<br><span>TIDAK ADA</span></h1>
+  <p>Alamat yang Anda buka tidak tersedia atau sudah dipindahkan.</p>
+  <a class="button" href="{{ url_for('pages.landing') }}">Kembali ke Beranda</a>
+</section>
+{% endblock %}

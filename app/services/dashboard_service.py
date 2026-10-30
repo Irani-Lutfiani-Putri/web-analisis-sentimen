@@ -27,7 +27,10 @@ def dashboard_context(user_id):
         ).all())
         preview = db.session.execute(
             db.select(Comment)
-            .filter_by(dataset_id=dataset.id)
+            .filter(
+                Comment.dataset_id == dataset.id,
+                Comment.sentiment_label.in_(('Positif', 'Negatif', 'Netral')),
+            )
             .order_by(Comment.row_number)
             .limit(10)
         ).scalars().all()

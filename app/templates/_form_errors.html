@@ -1,19 +1,17 @@
-{% macro error_summary(field_errors, form_error=None) %}
-  {% if field_errors or form_error %}
-    <div class="error-summary" role="alert" tabindex="-1" data-error-summary>
-      <strong>Periksa data berikut:</strong>
-      <ul>
-        {% if form_error %}<li>{{ form_error }}</li>{% endif %}
-        {% for field, message in field_errors.items() %}
-          <li><a href="#{{ field }}">{{ message }}</a></li>
-        {% endfor %}
-      </ul>
-    </div>
+{% macro field_error(field_errors, field) %}
+  {% if field_errors.get(field) %}
+    <p id="{{ field }}-error" class="field-error" role="alert">
+      <svg class="field-error-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <span>{{ field_errors[field] }}</span>
+    </p>
   {% endif %}
 {% endmacro %}
 
-{% macro field_error(field_errors, field) %}
-  {% if field_errors.get(field) %}
-    <p id="{{ field }}-error" class="field-error">{{ field_errors[field] }}</p>
+{% macro error_summary(form_error=None) %}
+  {# Ringkasan atas hanya untuk error global (bukan duplikat error per field). #}
+  {% if form_error %}
+    <div class="error-summary" role="alert" tabindex="-1" data-error-summary>
+      <strong>Terjadi kesalahan:</strong> {{ form_error }}
+    </div>
   {% endif %}
 {% endmacro %}

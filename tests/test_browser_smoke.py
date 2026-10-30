@@ -46,7 +46,7 @@ def test_public_navigation_and_mobile_layout():
             assert page.locator('#password-error').is_visible()
             assert page.locator('#email').get_attribute('aria-invalid') == 'true'
             assert page.locator('#password').get_attribute('aria-invalid') == 'true'
-            assert page.locator('[data-error-summary]').evaluate('node => node === document.activeElement')
+            assert page.locator('#email').evaluate('node => node === document.activeElement')
             assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
             page.goto(base + '/register')
             assert page.url.endswith('/register')

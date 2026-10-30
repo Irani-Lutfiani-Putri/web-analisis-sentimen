@@ -125,7 +125,7 @@ def upload():
             return _dashboard_modal(
                 summary=summary,
                 filename=original,
-                lexicon_warning="Dataset tersimpan, tetapi pelabelan lexicon otomatis gagal dimulai. "
+                lexicon_warning="Dataset tersimpan, tetapi pelabelan otomatis gagal dimulai. "
                                 "Superadmin dapat menjalankannya dari halaman Preprocessing.",
             )
         return redirect(url_for("preprocessing.index", dataset_id=dataset.id, job=job_id))
@@ -133,7 +133,7 @@ def upload():
     return _dashboard_modal(
         summary=summary,
         filename=original,
-        lexicon_warning="Dataset tersimpan tanpa label lexicon karena kamus belum tersedia. "
+        lexicon_warning="Dataset tersimpan tanpa label otomatis karena kamus belum tersedia. "
                         "Letakkan positive.tsv dan negative.tsv di folder lexicon, "
                         "lalu Superadmin menjalankan pelabelan dari halaman Preprocessing.",
     )

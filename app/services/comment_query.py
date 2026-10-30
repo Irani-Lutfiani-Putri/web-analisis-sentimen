@@ -12,7 +12,7 @@ from flask_login import current_user
 from app.extensions import db
 from app.models import Comment, Dataset
 
-PAGE_SIZE = 25
+PAGE_SIZE = 10
 
 LABEL_FILTERS = {'positif': 'Positif', 'negatif': 'Negatif', 'netral': 'Netral'}
 
@@ -28,7 +28,7 @@ FILTER_TEXTS = {
     'netral': 'Netral',
     'review': 'Perlu review',
     'manual': 'Label manual',
-    'lexicon': 'Label lexicon',
+    'lexicon': 'Label otomatis',
 }
 
 # Order matters: it is the order of the <option> list in both pages.

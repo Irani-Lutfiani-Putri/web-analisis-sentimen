@@ -29,6 +29,12 @@
     if (dialog.hasAttribute('data-auto-open')) openDialog();
   }
 
+  // Escape menutup modal: <dialog> native hanya merespons Escape bila fokus
+  // berada di dalam dialog; tangani global agar selalu berfungsi.
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && dialog && dialog.open) closeDialog();
+  });
+
   var chartWrap = document.querySelector('[data-chart-values]');
   var canvas = document.getElementById('sentiment-chart');
   if (!chartWrap || !canvas || typeof Chart === 'undefined') return;
@@ -39,7 +45,7 @@
       labels: ['Positif', 'Netral', 'Negatif'],
       datasets: [{
         data: values,
-        backgroundColor: ['#287a57', '#8a949e', '#a64040'],
+        backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
         borderColor: '#ffffff',
         borderWidth: 3
       }]

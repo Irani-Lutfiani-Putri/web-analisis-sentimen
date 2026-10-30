@@ -135,7 +135,7 @@ def test_upload_works_when_lexicon_missing(monkeypatch, tmp_path):
         client, token = login(app, "nolex@example.test", "rahasia-kuat-123")
         response = upload(client, token, CSV_BODY)
         assert response.status_code == 200, response.data[:300]
-        assert b"tanpa label lexicon" in response.data
+        assert b"tanpa label otomatis" in response.data
         with app.app_context():
             dataset = db.session.execute(db.select(Dataset)).scalar_one()
             assert dataset.row_count == 3

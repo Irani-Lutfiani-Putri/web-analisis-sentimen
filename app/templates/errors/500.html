@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Terjadi kesalahan{% endblock %}
+{% block public_content %}
+<section class="hero error-hero">
+  <p class="kicker">Kesalahan server</p>
+  <h1>TERJADI<br><span>KESALAHAN</span></h1>
+  <p>Server mengalami gangguan saat memproses permintaan. Coba beberapa saat lagi.</p>
+  <a class="button" href="{{ url_for('pages.landing') }}">Kembali ke Beranda</a>
+</section>
+{% endblock %}

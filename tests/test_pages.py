@@ -33,15 +33,15 @@ def test_shared_field_error_assets_are_loaded(app_client):
     assert b'/static/js/form-errors.js' in response.data
 
 
-def test_login_page_has_scoped_visual_hooks_and_no_register_prompt(app_client):
+def test_login_page_has_scoped_visual_hooks_and_register_prompt(app_client):
     response = app_client.get('/login')
 
     assert response.status_code == 200
     assert b'<body class="login-page">' in response.data
     assert b'class="public-login-link"' in response.data
     assert b'class="auth-card login-card"' in response.data
-    assert b'Belum punya akun?' not in response.data
-    assert b'href="/register"' not in response.data
+    assert b'Belum punya akun?' in response.data
+    assert b'href="/register"' in response.data
 
 
 def test_public_pages_render_with_real_links(app_client):

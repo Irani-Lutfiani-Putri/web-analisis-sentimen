@@ -137,7 +137,7 @@ def test_superadmin_sees_all_filters_and_review_rows(roles):
     assert "tidak buruk" in html
     assert "<th>Sumber</th>" in html
     assert "<th>Skor</th>" in html
-    assert "Jalankan Ulang Pelabelan Lexicon" in html
+    assert "Jalankan Ulang Pelabelan Otomatis" in html
 
 
 def test_imported_rows_without_review_status_stay_visible_to_user(roles):

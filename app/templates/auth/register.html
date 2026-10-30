@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_form_errors.html' import error_summary, field_error %}
+{% from '_form_errors.html' import field_error %}
 {% block title %}Daftar{% endblock %}
 {% block public_content %}
 {% set errors = field_errors|default({}) %}
@@ -7,7 +7,7 @@
 <section class="auth-card">
   <p class="kicker">Akses penelitian</p>
   <h1>Daftar</h1>
-  {{ error_summary(errors) }}
+  
   <form method="post" action="{{ url_for('auth.register') }}" novalidate>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label for="full_name">Nama lengkap</label>
@@ -21,6 +21,8 @@
     {{ field_error(errors, 'password') }}
     <button type="submit" class="button">Daftar</button>
   </form>
-  <p>Sudah punya akun? <a href="{{ url_for('auth.login_hint') }}">Masuk</a></p>
+  <div class="auth-links">
+    <p>Sudah punya akun? <a href="{{ url_for('auth.login_hint') }}">Masuk di sini</a></p>
+  </div>
 </section>
 {% endblock %}

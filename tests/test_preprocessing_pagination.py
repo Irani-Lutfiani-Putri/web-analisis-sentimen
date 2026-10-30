@@ -40,18 +40,18 @@ def login(app, token='page-nonce'):
     return client, csrf
 
 
-def test_first_page_shows_25_of_30(paged):
+def test_first_page_shows_10_of_30(paged):
     app, dataset_id = paged
     client, _ = login(app)
     html = client.get(f'/preprocessing?dataset_id={dataset_id}').data
-    assert b'1 / 2' in html or b'Halaman 1' in html
+    assert b'1 / 3' in html or b'Halaman 1' in html
     assert b'30 komentar' in html
 
 
 def test_second_page_has_remaining_rows(paged):
     app, dataset_id = paged
     client, _ = login(app)
-    page2 = client.get(f'/preprocessing?dataset_id={dataset_id}&page=2')
+    page2 = client.get(f'/preprocessing?dataset_id={dataset_id}&page=3')
     assert page2.status_code == 200
     assert b'nomor 29' in page2.data
     assert b'nomor 0' not in page2.data
