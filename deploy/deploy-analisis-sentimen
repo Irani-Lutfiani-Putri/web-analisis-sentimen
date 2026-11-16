@@ -1,0 +1,102 @@
+#!/bin/bash
+set -euo pipefail
+umask 027
+
+SHA="${1:-}"
+if [[ ! "${SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Usage: $0 <40-char-git-sha>" >&2
+  exit 2
+fi
+
+ROOT="/var/www/analisis-sentimen.mochhuda.id"
+PROJECT_USER="p-analisis-sentimen-mo"
+PROJECT_GROUP="$(id -gn "${PROJECT_USER}")"
+REPO="https://github.com/Irani-Lutfiani-Putri/web-analisis-sentimen.git"
+VENV="${ROOT}/shared/venv"
+SERVICE="analisis-sentimen.service"
+HEALTH="http://127.0.0.1:8000/health/db"
+CRED="/root/analisis-sentimen.mochhuda.id.db.env"
+LOG="/var/log/deploy-analisis-sentimen.log"
+
+exec 9>/run/lock/deploy-analisis-sentimen.lock
+if ! flock -n 9; then
+  echo "Another deployment is already running." >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "${LOG}")"
+exec >>"${LOG}" 2>&1
+echo "=== deploy ${SHA} $(date -Is) ==="
+
+CURRENT="$(readlink -f "${ROOT}/current" || true)"
+RELEASE_ID="$(date +%Y%m%d%H%M%S)-${SHA:0:7}"
+RELEASE="${ROOT}/releases/${RELEASE_ID}"
+
+if [[ -e "${RELEASE}" ]]; then
+  echo "Release already exists: ${RELEASE}" >&2
+  exit 1
+fi
+
+install -d -m 755 -o "${PROJECT_USER}" -g "${PROJECT_GROUP}" "${RELEASE}"
+
+sudo -u "${PROJECT_USER}" env GIT_TERMINAL_PROMPT=0 \
+  git clone --no-checkout "${REPO}" "${RELEASE}"
+sudo -u "${PROJECT_USER}" git -C "${RELEASE}" checkout --detach "${SHA}"
+
+ln -sfn "${ROOT}/shared/.env" "${RELEASE}/.env"
+ln -sfn "${ROOT}/shared/storage" "${RELEASE}/storage"
+chown -h "${PROJECT_USER}:${PROJECT_GROUP}" "${RELEASE}/.env" "${RELEASE}/storage"
+chown -R "${PROJECT_USER}:${PROJECT_GROUP}" "${RELEASE}"
+
+echo "Installing dependencies"
+sudo -u "${PROJECT_USER}" "${VENV}/bin/pip" install \
+  --disable-pip-version-check -r "${RELEASE}/requirements.txt"
+
+echo "Running migrations"
+set -a
+# shellcheck disable=SC1090
+. "${ROOT}/shared/.env"
+# shellcheck disable=SC1090
+. "${CRED}"
+set +a
+
+MIGRATE_URL="mysql+pymysql://${DB_DEPLOY_USERNAME}:${DB_DEPLOY_PASSWORD}@${DB_HOST}:3306/${DB_DATABASE}?charset=utf8mb4"
+sudo -u "${PROJECT_USER}" env \
+  DATABASE_URL="${MIGRATE_URL}" \
+  SECRET_KEY="${SECRET_KEY}" \
+  bash -c "cd '${RELEASE}' && '${VENV}/bin/flask' --app run.py db upgrade"
+
+echo "Switching current"
+ln -sfn "${RELEASE}" "${ROOT}/current"
+systemctl restart "${SERVICE}"
+
+HEALTHY=0
+for _ in {1..20}; do
+  if curl -fsS --max-time 5 "${HEALTH}" >/dev/null; then
+    HEALTHY=1
+    break
+  fi
+  sleep 2
+done
+
+if [[ "${HEALTHY}" != "1" ]]; then
+  echo "Health check failed; rolling back to ${CURRENT:-none}"
+  if [[ -n "${CURRENT}" && -d "${CURRENT}" ]]; then
+    ln -sfn "${CURRENT}" "${ROOT}/current"
+    systemctl restart "${SERVICE}"
+  fi
+  exit 1
+fi
+
+echo "Pruning old releases"
+mapfile -t RELEASES < <(
+  find "${ROOT}/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
+    | sort -nr | cut -d' ' -f2-
+)
+for dir in "${RELEASES[@]:5}"; do
+  if [[ -n "${dir}" && "${dir}" != "${RELEASE}" && "${dir}" != "${CURRENT}" ]]; then
+    rm -rf "${dir}"
+  fi
+done
+
+echo "Deploy OK: ${RELEASE}"

@@ -1,0 +1,111 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: sentiment_freeport_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      SECRET_KEY: ci-only-secret-key
+      DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/sentiment_freeport?charset=utf8mb4
+      TEST_DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/sentiment_freeport_test?charset=utf8mb4
+      SESSION_COOKIE_SECURE: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Create MySQL databases
+        run: |
+          python - <<'PY'
+          import pymysql
+
+          for db in ("sentiment_freeport", "sentiment_freeport_test"):
+              conn = pymysql.connect(host="127.0.0.1", user="root", password="root")
+              with conn.cursor() as cur:
+                  cur.execute(
+                      f"CREATE DATABASE IF NOT EXISTS `{db}` "
+                      "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                  )
+              conn.commit()
+              conn.close()
+          PY
+
+      - name: Compile Python
+        run: python -m compileall -q app
+
+      - name: Run tests
+        run: pytest tests -q
+
+  deploy:
+    name: Deploy production
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+
+    concurrency:
+      group: deploy-analisis-sentimen
+      cancel-in-progress: false
+
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SSH_PRIVATE_KEY:-}" ] || [ -z "${VPS_HOST:-}" ] || [ -z "${VPS_USER:-}" ] || [ -z "${VPS_KNOWN_HOSTS:-}" ]; then
+            echo "::warning::VPS deploy secrets are not configured; skipping deployment."
+            exit 0
+          fi
+
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -i "$HOME/.ssh/id_ed25519" \
+            "$VPS_USER@$VPS_HOST" \
+            "sudo /usr/local/sbin/deploy-analisis-sentimen '$COMMIT_SHA'"

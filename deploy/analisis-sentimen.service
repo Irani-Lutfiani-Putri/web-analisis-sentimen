@@ -1,0 +1,37 @@
+[Unit]
+Description=Analisis Sentimen Flask (Gunicorn)
+After=network.target mariadb.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=p-analisis-sentimen-mo
+Group=p-analisis-sentimen-mo
+WorkingDirectory=/var/www/analisis-sentimen.mochhuda.id/current
+EnvironmentFile=/var/www/analisis-sentimen.mochhuda.id/shared/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/var/www/analisis-sentimen.mochhuda.id/shared/venv/bin/gunicorn \
+  --workers 2 \
+  --bind 127.0.0.1:8000 \
+  --timeout 300 \
+  --graceful-timeout 30 \
+  --max-requests 1000 \
+  --max-requests-jitter 100 \
+  --no-control-socket \
+  --access-logfile - \
+  --error-logfile - \
+  run:app
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/analisis-sentimen.mochhuda.id/shared
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
