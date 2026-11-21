@@ -16,7 +16,7 @@ def test_imported_labels_are_not_independent_holdout(monkeypatch, tmp_path):
     with app.app_context():
         db.create_all()
         try:
-            admin = User(full_name='Admin', email='eligibility@test.local', role='superadmin')
+            admin = User(full_name='Admin', email='eligibility@test.local')
             admin.set_password('secure-password-123')
             db.session.add(admin); db.session.flush()
             d = Dataset(user_id=admin.id, original_filename='uji.csv', stored_filename='eligibility.csv', file_path='private', row_count=6, comment_column='isi', status='processed')

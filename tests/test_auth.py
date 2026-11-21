@@ -85,12 +85,6 @@ def test_login_and_logout_session(client):
     assert client.get("/dashboard").status_code == 302
 
 
-def test_user_cannot_access_admin_endpoint_directly(client):
-    client.post("/register", data={"full_name":"Peneliti", "email":"peneliti@example.test", "password":"rahasia-kuat-123"})
-    client.post("/login", data={"email":"peneliti@example.test", "password":"rahasia-kuat-123"})
-    assert client.get("/admin/health").status_code == 403
-
-
 def test_csrf_rejects_posts_without_token(monkeypatch):
     monkeypatch.setenv("SECRET_KEY", "test-secret")
     monkeypatch.setenv("DATABASE_URL", os.environ["TEST_DATABASE_URL"])
@@ -116,18 +110,6 @@ def test_register_with_valid_csrf_token(monkeypatch):
         assert response.status_code == 302
         db.session.remove()
         db.drop_all()
-
-
-def test_superadmin_creation_requires_explicit_cli_credentials(client):
-    from app.models import User
-    runner = client.application.test_cli_runner()
-    result = runner.invoke(args=["create-superadmin", "--name", "Pengelola", "--email", "admin@example.test"], env={"SUPERADMIN_INITIAL_PASSWORD": "rahasia-superadmin-123"})
-    assert result.exit_code == 0
-    with client.application.app_context():
-        admin = db.session.execute(db.select(User).filter_by(email="admin@example.test")).scalar_one()
-        assert admin.role == "superadmin"
-        assert admin.check_password("rahasia-superadmin-123")
-    assert "rahasia-superadmin-123" not in result.output
 
 
 def test_duplicate_registration_rejected(client):

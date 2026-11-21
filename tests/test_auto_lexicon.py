@@ -28,7 +28,7 @@ def lexicon(tmp_path):
     return target
 
 
-def make_app(monkeypatch, tmp_path, lexicon_folder, role="user"):
+def make_app(monkeypatch, tmp_path, lexicon_folder):
     if not os.environ.get("TEST_DATABASE_URL"):
         pytest.skip("TEST_DATABASE_URL MySQL terpisah belum tersedia")
     monkeypatch.setenv("DATABASE_URL", os.environ["TEST_DATABASE_URL"])
@@ -40,20 +40,13 @@ def make_app(monkeypatch, tmp_path, lexicon_folder, role="user"):
     return app
 
 
-def login(app, email, password, role="user"):
+def login(app, email, password):
     client = app.test_client()
     with client.session_transaction() as session:
         session["csrf_token"] = "auto-lexicon-nonce"
     token = URLSafeTimedSerializer(app.secret_key, salt="wtf-csrf-token").dumps("auto-lexicon-nonce")
-    if role == "superadmin":
-        with app.app_context():
-            user = User(full_name="Admin", email=email, role="superadmin")
-            user.set_password(password)
-            db.session.add(user)
-            db.session.commit()
-    else:
-        client.post("/register", data={"full_name": "Peneliti", "email": email,
-                                       "password": password, "csrf_token": token})
+    client.post("/register", data={"full_name": "Peneliti", "email": email,
+                                   "password": password, "csrf_token": token})
     assert client.post("/login", data={"email": email, "password": password,
                                        "csrf_token": token}).status_code == 302
     return client, token
@@ -148,7 +141,7 @@ def test_imported_manual_labels_are_never_overwritten(monkeypatch, tmp_path, lex
     app = make_app(monkeypatch, tmp_path, lexicon)
     prepare(app)
     try:
-        client, token = login(app, "labels@example.test", "rahasia-kuat-123", role="superadmin")
+        client, token = login(app, "labels@example.test", "rahasia-kuat-123")
         body = ("isi,kategori\n"
                 "kondisi buruk dan kotor,Positif\n"
                 "pelayanan mantap dan bermanfaat,Positif\n").encode()

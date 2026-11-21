@@ -16,7 +16,7 @@ def test_dashboard_reads_owned_dataset_and_actual_count(monkeypatch):
     with app.app_context():
         db.create_all()
         try:
-            owner = User(full_name='Peneliti', email='dashboard@test.local', role='user')
+            owner = User(full_name='Peneliti', email='dashboard@test.local')
             owner.set_password('secure-password-123')
             db.session.add(owner); db.session.flush()
             dataset = Dataset(user_id=owner.id, original_filename='pertambangan.csv', stored_filename='dash-private.csv', file_path='private', row_count=1, comment_column='isi', status='validated')

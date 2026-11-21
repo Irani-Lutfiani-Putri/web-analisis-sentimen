@@ -17,7 +17,7 @@ def test_process_dataset_preserves_original_and_stores_cleaned(monkeypatch):
     with app.app_context():
         db.create_all()
         try:
-            user = User(full_name='Peneliti', email='process@test.local', role='user')
+            user = User(full_name='Peneliti', email='process@test.local')
             user.set_password('secure-password-123')
             db.session.add(user); db.session.flush()
             dataset = Dataset(user_id=user.id, original_filename='uji.csv', stored_filename='process.csv', file_path='private', row_count=1, comment_column='isi', status='validated')

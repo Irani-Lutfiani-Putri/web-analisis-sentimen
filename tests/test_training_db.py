@@ -22,7 +22,7 @@ def records(monkeypatch, tmp_path):
     with app.app_context():
         db.create_all()
         try:
-            owner = User(full_name='Peneliti', email='train@test.local', role='user')
+            owner = User(full_name='Peneliti', email='train@test.local')
             owner.set_password('secure-password-123')
             db.session.add(owner); db.session.flush()
             dataset = Dataset(user_id=owner.id, original_filename='train.csv', stored_filename='train-private.csv', file_path='private', row_count=24, comment_column='text', status='processed')
