@@ -8,10 +8,6 @@ from app.services.dashboard_service import dashboard_context
 bp = Blueprint("auth", __name__)
 
 
-def superadmin_required(fn):
-    return login_required(fn)
-
-
 @bp.post("/register")
 def register():
     name = request.form.get("full_name", "").strip()
@@ -96,9 +92,3 @@ def dashboard():
 def logout():
     logout_user()
     return redirect(url_for("auth.login_hint"))
-
-
-@bp.get("/admin/health")
-@superadmin_required
-def admin_health():
-    return "Admin tersedia"

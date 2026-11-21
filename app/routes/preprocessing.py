@@ -52,7 +52,7 @@ def _index_context(dataset, q, label, page_arg, **extra):
         'total_filtered': total_filtered, 'page_size': PAGE_SIZE,
         'filter_options': filter_options(PREPROCESS_FILTER_KEYS),
         'pending_review': pending,
-        'labels_url': f'/labels?dataset_id={dataset.id}' if dataset else None,
+        'labels_url': url_for('labels.index', dataset_id=dataset.id) if dataset else None,
     }
     context.update(extra)
     return context

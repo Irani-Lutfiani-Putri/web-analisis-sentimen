@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}Review dan Label{% endblock %}
+{% block content %}
+<header class="page-header">
+  <p class="kicker">Pelabelan manual</p>
+  <h1>Review dan Label</h1>
+  <p>Periksa komentar yang belum punya label pasti, lalu tetapkan label manual. Data di halaman ini hanya berasal dari dataset Anda.</p>
+</header>
+
+{% if error %}<p role="alert" class="notice">{{ error }}</p>{% endif %}
+{% if notice %}<p role="status" class="notice">{{ notice }}</p>{% endif %}
+
+<section class="panel">
+  <h2>Pilih dataset</h2>
+  {% if datasets %}
+  <form class="filters" method="get" action="{{ url_for('labels.index') }}">
+    <label for="dataset_id">Dataset</label>
+    <select id="dataset_id" name="dataset_id">
+      {% for item in datasets %}
+      <option value="{{ item.id }}" {{ 'selected' if item.id == dataset.id }}>{{ item.original_filename }} (#{{ item.id }})</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="button" data-progress="Memuat dataset">Tampilkan</button>
+  </form>
+  {% else %}
+  <p role="status">Belum ada dataset. Import CSV dari Dashboard terlebih dahulu.</p>
+  {% endif %}
+</section>
+
+{% if dataset %}
+<section class="panel">
+  <h2>Ringkasan</h2>
+  <p>
+    {{ total_comments }} komentar.
+    {% if label_counts %}
+    Positif {{ label_counts.get('Positif', 0) }}, Netral {{ label_counts.get('Netral', 0) }},
+    Negatif {{ label_counts.get('Negatif', 0) }}.
+    {% else %}
+    Belum ada label akhir.
+    {% endif %}
+    {% if pending_review %}{{ pending_review }} komentar perlu label.{% endif %}
+  </p>
+  {% if holdout %}
+  <p>
+    <strong>Data uji independen:</strong> {{ holdout.total }} komentar ditandai.
+    Positif {{ holdout.per_class['Positif'] }}, Netral {{ holdout.per_class['Netral'] }},
+    Negatif {{ holdout.per_class['Negatif'] }}.
+    {% if holdout.ready %}
+    Semua kelas terwakili.
+    {% else %}
+    Kelas belum terwakili: {{ holdout.missing|join(', ') }}.
+    {% endif %}
+  </p>
+  <p>{{ holdout.eligible }} komentar berlabel manual lain tersedia untuk ditandai.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h2>Komentar</h2>
+  <form class="filters" method="get" action="{{ url_for('labels.index') }}" role="search">
+    <input type="hidden" name="dataset_id" value="{{ dataset.id }}">
+    <label for="q">Cari komentar</label>
+    <input id="q" name="q" type="search" value="{{ q }}" placeholder="Kata kunci komentar">
+    <label for="label">Filter label</label>
+    <select id="label" name="label">
+      {% for option in filter_options %}
+      <option value="{{ option.value }}"{{ ' selected' if label == option.value }}>{{ option.text }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="button" data-progress="Memuat daftar komentar">Terapkan</button>
+    {% if q or label != 'review' %}
+    <a href="{{ url_for('labels.index', dataset_id=dataset.id) }}">Reset</a>
+    {% endif %}
+  </form>
+
+  <p class="result-count">
+    {{ total_filtered }} komentar cocok. Menampilkan {{ comments|length }} baris,
+    halaman {{ page }} dari {{ total_pages }}.
+  </p>
+
+  <form method="post" action="{{ url_for('labels.save_label_bulk') }}" id="bulk-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="dataset_id" value="{{ dataset.id }}">
+    <input type="hidden" name="q" value="{{ q }}">
+    <input type="hidden" name="label_filter" value="{{ label }}">
+    <input type="hidden" name="page" value="{{ page }}">
+    <label for="bulk-label">Label massal untuk baris terpilih</label>
+    <select id="bulk-label" name="label">
+      <option value="" selected disabled>Pilih label</option>
+      <option>Positif</option>
+      <option>Negatif</option>
+      <option>Netral</option>
+    </select>
+    <button type="submit" data-progress="Menyimpan label massal">Terapkan ke baris terpilih</button>
+  </form>
+
+  <table>
+    <caption>Review dan label komentar</caption>
+    <thead>
+      <tr>
+        <th>Pilih</th>
+        <th>Komentar</th>
+        <th>Label akhir</th>
+        <th>Status</th>
+        <th>Sumber</th>
+        <th>Skor</th>
+        <th>Label manual</th>
+        <th>Data uji</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in comments %}
+      <tr>
+        <td>
+          <input type="checkbox" name="comment_ids" value="{{ item.id }}" form="bulk-form" aria-label="Pilih komentar {{ item.id }}">
+        </td>
+        <td>{{ item.text }}</td>
+        <td>{{ item.label or 'Belum berlabel' }}</td>
+        <td>{{ {'accepted': 'Diterima', 'review': 'Perlu label', 'resolved': 'Selesai'}.get(item.review, item.review or 'Belum berlabel') }}</td>
+        <td>{{ {'lexicon': 'Otomatis', 'manual': 'Manual', 'review': 'Review'}.get(item.source, item.source) or '-' }}</td>
+        <td>{{ item.score if item.score is not none else '-' }}</td>
+        <td>{{ item.manual or '-' }}</td>
+        <td>{{ 'Ya' if item.holdout else 'Tidak' }}</td>
+        <td>
+          <form method="post" action="{{ url_for('labels.save_label') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="comment_id" value="{{ item.id }}">
+            <input type="hidden" name="q" value="{{ q }}">
+            <input type="hidden" name="label_filter" value="{{ label }}">
+            <input type="hidden" name="page" value="{{ page }}">
+            <label for="label-{{ item.id }}">Label</label>
+            <select id="label-{{ item.id }}" name="label">
+              <option value="" selected disabled>Pilih</option>
+              <option {{ 'selected' if item.manual == 'Positif' }}>Positif</option>
+              <option {{ 'selected' if item.manual == 'Negatif' }}>Negatif</option>
+              <option {{ 'selected' if item.manual == 'Netral' }}>Netral</option>
+            </select>
+            <button type="submit" data-progress="Menyimpan label">Simpan</button>
+          </form>
+
+          {% if item.holdout %}
+          <form method="post" action="{{ url_for('labels.toggle_holdout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="comment_id" value="{{ item.id }}">
+            <input type="hidden" name="value" value="0">
+            <input type="hidden" name="q" value="{{ q }}">
+            <input type="hidden" name="label_filter" value="{{ label }}">
+            <input type="hidden" name="page" value="{{ page }}">
+            <button type="submit">Lepas data uji</button>
+          </form>
+          {% elif item.eligible %}
+          <form method="post" action="{{ url_for('labels.toggle_holdout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="comment_id" value="{{ item.id }}">
+            <input type="hidden" name="value" value="1">
+            <input type="hidden" name="q" value="{{ q }}">
+            <input type="hidden" name="label_filter" value="{{ label }}">
+            <input type="hidden" name="page" value="{{ page }}">
+            <button type="submit">Tandai data uji</button>
+          </form>
+          {% else %}
+          <p>Butuh label manual</p>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="9">Tidak ada komentar yang cocok dengan pencarian atau filter ini.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if total_pages > 1 %}
+  <nav class="pagination" aria-label="Navigasi halaman">
+    <a class="page-link" href="{{ url_for('labels.index', dataset_id=dataset.id, q=q or None, label=label, page=page-1) if page > 1 else '#' }}" {{ 'aria-disabled=true' if page <= 1 }}>Sebelumnya</a>
+    <span>Halaman {{ page }} / {{ total_pages }}</span>
+    <a class="page-link" href="{{ url_for('labels.index', dataset_id=dataset.id, q=q or None, label=label, page=page+1) if page < total_pages else '#' }}" {{ 'aria-disabled=true' if page >= total_pages }}>Berikutnya</a>
+  </nav>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

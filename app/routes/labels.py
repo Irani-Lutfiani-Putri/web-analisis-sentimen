@@ -1,21 +1,14 @@
-"""Superadmin workspace for reviewing and correcting lexicon labels.
-
-Every write here delegates to the existing services (``update_manual_label``
-and ``set_holdout``) so the research rules live in one place: a manual label
-is never overwritten by the lexicon, and only a row that already carries a
-manual label can become independent test data.
-"""
+"""Review, manual labels, and holdout for the signed-in account's datasets."""
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.models import Comment, Dataset
-from app.routes.auth import superadmin_required
 from app.services import comment_query
 from app.services.holdout_service import HoldoutError, set_holdout, summary as holdout_summary
 from app.services.lexicon_service import update_manual_label
 
-bp = Blueprint('admin_datasets', __name__, url_prefix='/admin/datasets')
+bp = Blueprint('labels', __name__)
 
 MAX_BULK = 200
 VALID_LABELS = ('Positif', 'Negatif', 'Netral')
@@ -23,31 +16,39 @@ VALID_LABELS = ('Positif', 'Negatif', 'Netral')
 
 def _back(dataset_id, error=None, notice=None):
     """Return to the same page and filter the action came from."""
-    return redirect(url_for('admin_datasets.index', dataset_id=dataset_id,
+    return redirect(url_for('labels.index', dataset_id=dataset_id,
                             q=request.form.get('q') or None,
                             label=request.form.get('label_filter') or None,
                             page=request.form.get('page') or None,
                             error=error, notice=notice))
 
 
-@bp.get('')
-@superadmin_required
+@bp.get('/labels')
+@login_required
 def index():
-    datasets = db.session.execute(db.select(Dataset).filter_by(user_id=current_user.id)
-                                  .order_by(Dataset.id.desc()).limit(50)).scalars().all()
+    datasets = db.session.execute(
+        db.select(Dataset).filter_by(user_id=current_user.id)
+        .order_by(Dataset.id.desc()).limit(50)
+    ).scalars().all()
     requested = request.args.get('dataset_id', type=int)
-    dataset = next((d for d in datasets if d.id == requested), None) or (datasets[0] if datasets else None)
+    dataset = next((item for item in datasets if item.id == requested), None) or (datasets[0] if datasets else None)
     q = (request.args.get('q') or '').strip()[:100]
-    label = comment_query.normalize_filter(request.args.get('label') or 'semua', comment_query.LABELS_FILTER_KEYS)
+    label = comment_query.normalize_filter(
+        request.args.get('label') or 'review', comment_query.LABELS_FILTER_KEYS
+    )
 
     comments, total_filtered, page, total_pages = [], 0, 1, 1
-    counts, pending, holdout = {}, 0, None
+    counts, pending, holdout, total_comments = {}, 0, None, 0
     if dataset:
         comments, total_filtered, page, total_pages = comment_query.paginate(
-            dataset.id, q, label, request.args.get('page', type=int), include_review=True)
+            dataset.id, q, label, request.args.get('page', type=int), include_review=True
+        )
         counts = comment_query.label_counts(dataset.id)
         pending = comment_query.pending_review_count(dataset.id)
         holdout = holdout_summary(dataset.id)
+        total_comments = db.session.scalar(
+            db.select(db.func.count(Comment.id)).filter(Comment.dataset_id == dataset.id)
+        )
 
     rows = []
     for comment in comments:
@@ -65,17 +66,19 @@ def index():
                         and comment.sentiment_label == comment.manual_label,
         })
 
-    return render_template('admin_datasets/index.html',
-                           datasets=datasets, dataset=dataset, comments=rows,
-                           total_filtered=total_filtered, page=page, total_pages=total_pages,
-                           label_counts=counts, pending_review=pending, holdout=holdout,
-                           q=q, label=label,
-                           filter_options=comment_query.filter_options(comment_query.LABELS_FILTER_KEYS),
-                           error=request.args.get('error'), notice=request.args.get('notice'))
+    return render_template(
+        'labels/index.html',
+        datasets=datasets, dataset=dataset, comments=rows,
+        total_filtered=total_filtered, total_comments=total_comments,
+        page=page, total_pages=total_pages, label_counts=counts,
+        pending_review=pending, holdout=holdout, q=q, label=label,
+        filter_options=comment_query.filter_options(comment_query.LABELS_FILTER_KEYS),
+        error=request.args.get('error'), notice=request.args.get('notice'),
+    )
 
 
-@bp.post('/label')
-@superadmin_required
+@bp.post('/labels/label')
+@login_required
 def save_label():
     comment = db.session.get(Comment, request.form.get('comment_id', type=int))
     if not comment:
@@ -89,16 +92,15 @@ def save_label():
     return _back(dataset.id, notice=f'Label komentar #{comment.id} disimpan sebagai {comment.sentiment_label}.')
 
 
-@bp.post('/label/bulk')
-@superadmin_required
+@bp.post('/labels/label/bulk')
+@login_required
 def save_label_bulk():
     dataset = comment_query.owned_dataset(request.form.get('dataset_id', type=int))
     label = request.form.get('label')
     if label not in VALID_LABELS:
         return _back(dataset.id, error='Label tidak valid; pilih Positif, Negatif, atau Netral.')
-    raw_ids = request.form.getlist('comment_ids')
     ids = []
-    for value in raw_ids[:MAX_BULK]:
+    for value in request.form.getlist('comment_ids')[:MAX_BULK]:
         try:
             ids.append(int(value))
         except (TypeError, ValueError):
@@ -113,8 +115,8 @@ def save_label_bulk():
     return _back(dataset.id, notice=f'{len(comments)} komentar diberi label manual {label}.')
 
 
-@bp.post('/holdout')
-@superadmin_required
+@bp.post('/labels/holdout')
+@login_required
 def toggle_holdout():
     comment = db.session.get(Comment, request.form.get('comment_id', type=int))
     if not comment:
@@ -123,9 +125,13 @@ def toggle_holdout():
     value = request.form.get('value') == '1'
     try:
         set_holdout(comment, value)
-    except PermissionError:
-        abort(403)
     except HoldoutError as exc:
         return _back(dataset.id, error=str(exc))
     state = 'ditandai' if value else 'dilepas'
     return _back(dataset.id, notice=f'Data uji independen komentar #{comment.id} {state}.')
+
+
+@bp.get('/admin/datasets')
+@login_required
+def legacy_index():
+    return redirect(url_for('labels.index', **request.args.to_dict()))
