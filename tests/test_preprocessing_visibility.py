@@ -88,3 +88,13 @@ def test_preprocessing_pending_count_includes_review_and_unlabeled(dataset):
     client = login(dataset.app, "visibility@test.local")
     html = client.get(f"/preprocessing?dataset_id={dataset.id}").data.decode()
     assert "Buka Review dan Label (2)" in html
+
+
+def test_preprocessing_shows_rerun_and_labels_link(dataset):
+    client = login(dataset.app, "visibility@test.local")
+    html = client.get(f"/preprocessing?dataset_id={dataset.id}").data.decode()
+    assert "Hitung Ulang Label Otomatis" in html
+    assert "Buka Review dan Label (2)" in html
+    assert "<th>Sumber</th>" not in html
+    assert "<th>Skor</th>" not in html
+    assert "/preprocessing/labels/manual" not in html

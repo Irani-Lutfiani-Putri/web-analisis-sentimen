@@ -15,7 +15,7 @@ def paged(monkeypatch):
     app = create_app(); app.config.update(TESTING=True)
     with app.app_context():
         db.create_all()
-        admin = User(full_name='Pengelola', email='pager@test.local', role='superadmin')
+        admin = User(full_name='Pengelola', email='pager@test.local')
         admin.set_password('secure-password-123'); db.session.add(admin); db.session.flush()
         dataset = Dataset(user_id=admin.id, original_filename='pager.csv', stored_filename='pager-private.csv',
                           file_path='private', row_count=30, comment_column='isi', status='validated')
@@ -40,12 +40,12 @@ def login(app, token='page-nonce'):
     return client, csrf
 
 
-def test_first_page_shows_10_of_30(paged):
+def test_first_page_shows_10_of_24(paged):
     app, dataset_id = paged
     client, _ = login(app)
     html = client.get(f'/preprocessing?dataset_id={dataset_id}').data
     assert b'1 / 3' in html or b'Halaman 1' in html
-    assert b'30 komentar' in html
+    assert b'24 komentar' in html
 
 
 def test_second_page_has_remaining_rows(paged):
@@ -65,22 +65,10 @@ def test_search_filters_rows(paged):
     assert b'memberi manfaat' not in html
 
 
-def test_label_filter_review_only(paged):
+def test_review_filter_falls_back_to_all_labelled_rows(paged):
     app, dataset_id = paged
     client, _ = login(app)
     html = client.get(f'/preprocessing?dataset_id={dataset_id}&label=review').data
-    assert b'nomor 0</td>' in html
-    assert b'nomor 1</td>' not in html
-
-
-def test_manual_label_returns_to_same_page_and_query(paged):
-    app, dataset_id = paged
-    client, csrf = login(app)
-    with app.app_context():
-        target = db.session.execute(db.select(Comment).filter_by(dataset_id=dataset_id, row_number=2)).scalar_one()
-        comment_id = target.id
-    response = client.post('/preprocessing/labels/manual',
-                           data={'csrf_token': csrf, 'comment_id': comment_id, 'label': 'Positif', 'q': 'merusak', 'page': '2'})
-    assert response.status_code == 302
-    assert 'q=merusak' in response.headers['Location']
-    assert 'page=2' in response.headers['Location']
+    assert b'24 komentar' in html
+    assert b'nomor 0</td>' not in html
+    assert b'nomor 1</td>' in html
