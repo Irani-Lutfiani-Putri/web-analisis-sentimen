@@ -1,10 +1,7 @@
-"""Shared comment listing rules for Preprocessing and Kelola Dataset.
+"""Shared comment listing rules for Preprocessing and the labels page.
 
-One module owns three decisions so the two pages can never drift apart:
-which filter keys a role may use, which rows a role may see, and how a
-page of comments is sliced. Rows still awaiting Superadmin review are
-filtered here — in SQL, before pagination — so page counts stay honest
-instead of hiding rows after the fact.
+Preprocessing shows only comments with a final label. The labels page shows
+every row, including review and unlabeled rows, so a human can resolve them.
 """
 from flask import abort
 from flask_login import current_user
@@ -16,9 +13,8 @@ PAGE_SIZE = 10
 
 LABEL_FILTERS = {'positif': 'Positif', 'negatif': 'Negatif', 'netral': 'Netral'}
 
-# `review` rows have no reliable label yet; only Superadmin may see them.
-USER_FILTER_KEYS = {'semua', 'sudah', *LABEL_FILTERS}
-ADMIN_FILTER_KEYS = {'semua', 'sudah', 'review', 'manual', 'lexicon', *LABEL_FILTERS}
+PREPROCESS_FILTER_KEYS = ('semua', 'sudah', *LABEL_FILTERS)
+LABELS_FILTER_KEYS = ('semua', 'sudah', *LABEL_FILTERS, 'review', 'manual', 'lexicon')
 
 FILTER_TEXTS = {
     'semua': 'Semua label',
@@ -26,35 +22,19 @@ FILTER_TEXTS = {
     'positif': 'Positif',
     'negatif': 'Negatif',
     'netral': 'Netral',
-    'review': 'Perlu review',
+    'review': 'Perlu label',
     'manual': 'Label manual',
     'lexicon': 'Label otomatis',
 }
 
-# Order matters: it is the order of the <option> list in both pages.
-USER_FILTER_ORDER = ('semua', 'sudah', 'positif', 'negatif', 'netral')
-ADMIN_FILTER_ORDER = ('semua', 'sudah', 'positif', 'negatif', 'netral', 'review', 'manual', 'lexicon')
+
+def normalize_filter(label, allowed_keys):
+    """Unknown filters fall back to 'semua' rather than 403."""
+    return label if label in allowed_keys else 'semua'
 
 
-def is_superadmin(role=None):
-    return (role if role is not None else current_user.role) == 'superadmin'
-
-
-def allowed_filter_keys(role):
-    return ADMIN_FILTER_KEYS if is_superadmin(role) else USER_FILTER_KEYS
-
-
-def filter_order(role):
-    return ADMIN_FILTER_ORDER if is_superadmin(role) else USER_FILTER_ORDER
-
-
-def normalize_filter(label, role):
-    """Unknown or forbidden filters fall back to 'semua' rather than 403."""
-    return label if label in allowed_filter_keys(role) else 'semua'
-
-
-def filter_options(role):
-    return [{'value': key, 'text': FILTER_TEXTS[key]} for key in filter_order(role)]
+def filter_options(allowed_keys):
+    return [{'value': key, 'text': FILTER_TEXTS[key]} for key in allowed_keys]
 
 
 def format_score(value):
@@ -71,17 +51,21 @@ def owned_dataset(dataset_id):
     return dataset
 
 
-def build_query(dataset_id, q, label, role):
-    """Base SELECT for a dataset, already narrowed to what `role` may see."""
+def build_query(dataset_id, q, label, include_review=False):
+    """Base SELECT for a dataset, narrowed to the page's visibility rule."""
     query = db.select(Comment).filter(Comment.dataset_id == dataset_id)
-    if not is_superadmin(role):
-        # Rows queued for review stay invisible to regular users. Imported
-        # manual rows carry review_status NULL, hence the coalesce.
-        query = query.filter(db.func.coalesce(Comment.review_status, '') != 'review')
+    if not include_review:
+        # Imported manual rows carry review_status NULL, hence the coalesce.
+        query = query.filter(
+            Comment.sentiment_label.is_not(None),
+            db.func.coalesce(Comment.review_status, '') != 'review',
+        )
     if q:
         query = query.filter(Comment.comment_text.like(f"%{q}%"))
     if label == 'review':
-        query = query.filter(Comment.review_status == 'review')
+        query = query.filter(
+            db.or_(Comment.sentiment_label.is_(None), Comment.review_status == 'review')
+        )
     elif label == 'manual':
         query = query.filter(Comment.label_source == 'manual')
     elif label == 'lexicon':
@@ -93,8 +77,8 @@ def build_query(dataset_id, q, label, role):
     return query
 
 
-def paginate(dataset_id, q, label, role, page_arg):
-    base = build_query(dataset_id, q, label, role)
+def paginate(dataset_id, q, label, page_arg, include_review=False):
+    base = build_query(dataset_id, q, label, include_review=include_review)
     total_filtered = db.session.scalar(db.select(db.func.count()).select_from(base.subquery()))
     total_pages = max(1, -(-total_filtered // PAGE_SIZE))
     page = min(max(page_arg or 1, 1), total_pages)
@@ -112,8 +96,11 @@ def label_counts(dataset_id):
 
 
 def pending_review_count(dataset_id):
-    """How many rows are waiting for Superadmin; shown to users as a number only."""
+    """Rows that still need a human label, including never-labeled imports."""
     return db.session.scalar(
         db.select(db.func.count(Comment.id))
-        .filter(Comment.dataset_id == dataset_id, Comment.review_status == 'review')
+        .filter(
+            Comment.dataset_id == dataset_id,
+            db.or_(Comment.sentiment_label.is_(None), Comment.review_status == 'review'),
+        )
     ) or 0

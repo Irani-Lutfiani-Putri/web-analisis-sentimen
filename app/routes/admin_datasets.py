@@ -38,13 +38,13 @@ def index():
     requested = request.args.get('dataset_id', type=int)
     dataset = next((d for d in datasets if d.id == requested), None) or (datasets[0] if datasets else None)
     q = (request.args.get('q') or '').strip()[:100]
-    label = comment_query.normalize_filter(request.args.get('label') or 'semua', current_user.role)
+    label = comment_query.normalize_filter(request.args.get('label') or 'semua', comment_query.LABELS_FILTER_KEYS)
 
     comments, total_filtered, page, total_pages = [], 0, 1, 1
     counts, pending, holdout = {}, 0, None
     if dataset:
         comments, total_filtered, page, total_pages = comment_query.paginate(
-            dataset.id, q, label, current_user.role, request.args.get('page', type=int))
+            dataset.id, q, label, request.args.get('page', type=int), include_review=True)
         counts = comment_query.label_counts(dataset.id)
         pending = comment_query.pending_review_count(dataset.id)
         holdout = holdout_summary(dataset.id)
@@ -70,7 +70,7 @@ def index():
                            total_filtered=total_filtered, page=page, total_pages=total_pages,
                            label_counts=counts, pending_review=pending, holdout=holdout,
                            q=q, label=label,
-                           filter_options=comment_query.filter_options(current_user.role),
+                           filter_options=comment_query.filter_options(comment_query.LABELS_FILTER_KEYS),
                            error=request.args.get('error'), notice=request.args.get('notice'))
 
 
