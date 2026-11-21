@@ -18,3 +18,17 @@ def test_required_tables_and_comment_constraints(monkeypatch):
         assert {"users", "datasets", "comments", "model_runs", "predictions", "label_history"}.issubset(inspector.get_table_names())
         assert any(set(item["column_names"]) == {"dataset_id", "row_number"} for item in inspector.get_unique_constraints("comments"))
         db.drop_all()
+
+
+def test_users_table_has_no_role_column(monkeypatch):
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        pytest.skip("TEST_DATABASE_URL MySQL terpisah belum tersedia")
+    monkeypatch.setenv("DATABASE_URL", url)
+    monkeypatch.setenv("SECRET_KEY", "test-secret")
+    app = create_app()
+    with app.app_context():
+        db.create_all()
+        columns = {item["name"] for item in inspect(db.engine).get_columns("users")}
+        assert "role" not in columns
+        db.drop_all()

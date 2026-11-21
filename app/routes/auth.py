@@ -1,5 +1,4 @@
-from functools import wraps
-from flask import Blueprint, abort, redirect, request, url_for, render_template
+from flask import Blueprint, redirect, request, url_for, render_template
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy.exc import IntegrityError
 from app.extensions import db
@@ -10,13 +9,7 @@ bp = Blueprint("auth", __name__)
 
 
 def superadmin_required(fn):
-    @wraps(fn)
-    @login_required
-    def inner(*args, **kwargs):
-        if current_user.role != "superadmin":
-            abort(403)
-        return fn(*args, **kwargs)
-    return inner
+    return login_required(fn)
 
 
 @bp.post("/register")
@@ -39,7 +32,7 @@ def register():
             field_errors=field_errors,
             form_values={"full_name": name, "email": email},
         ), 400
-    user = User(full_name=name, email=email, role="user")
+    user = User(full_name=name, email=email)
     user.set_password(password)
     db.session.add(user)
     try:

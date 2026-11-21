@@ -20,13 +20,13 @@ def client(monkeypatch):
         db.drop_all()
 
 
-def test_register_ignores_submitted_admin_role_and_hashes_password(client):
+def test_register_creates_account_without_role(client):
     from app.models import User
-    response = client.post("/register", data={"full_name":"Peneliti", "email":"peneliti@example.test", "password":"rahasia-kuat-123", "role":"superadmin"})
+    response = client.post("/register", data={"full_name":"Peneliti", "email":"tanpa-role@example.test", "password":"rahasia-kuat-123", "role":"superadmin"})
     assert response.status_code == 302
     with client.application.app_context():
-        user = db.session.execute(db.select(User).filter_by(email="peneliti@example.test")).scalar_one()
-        assert user.role == "user"
+        user = db.session.execute(db.select(User).filter_by(email="tanpa-role@example.test")).scalar_one()
+        assert not hasattr(user, "role")
         assert user.password_hash != "rahasia-kuat-123"
         assert user.check_password("rahasia-kuat-123")
 
