@@ -122,7 +122,7 @@ def toggle_holdout():
     dataset = comment_query.owned_dataset(comment.dataset_id)
     value = request.form.get('value') == '1'
     try:
-        set_holdout(comment, current_user.id, value)
+        set_holdout(comment, value)
     except PermissionError:
         abort(403)
     except HoldoutError as exc:

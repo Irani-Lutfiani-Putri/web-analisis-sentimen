@@ -73,12 +73,6 @@ def upload():
             status=400,
         )
     label_column = request.form.get("label_column") or None
-    if label_column and current_user.role != "superadmin":
-        return _dashboard_modal(
-            field_errors={"upload_label_column": "Kolom label manual hanya boleh diimpor Superadmin."},
-            form_values=values,
-            status=403,
-        )
     try:
         rows, summary = parse_csv(file.stream, request.form.get("comment_column", ""), label_column)
     except DatasetError as exc:

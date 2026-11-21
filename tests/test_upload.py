@@ -42,12 +42,14 @@ def test_upload_saves_actual_rows_to_mysql(client):
         assert db.session.execute(db.select(Comment)).scalars().all()[0].manual_label is None
 
 
-def test_user_cannot_import_manual_labels(client):
+def test_account_can_import_manual_labels(client):
     web, token = client
     response = web.post("/datasets/upload", data={"csrf_token":token, "comment_column":"isi", "label_column":"kategori", "file":(io.BytesIO(b"isi,kategori\nTambang berjalan,Positif\n"),"comments.csv")}, content_type="multipart/form-data")
-    assert response.status_code == 403
+    assert response.status_code == 200
     with web.application.app_context():
-        assert db.session.execute(db.select(Dataset)).first() is None
+        comment = db.session.execute(db.select(Comment)).scalar_one()
+        assert comment.manual_label == "Positif"
+        assert comment.label_source == "manual"
 
 
 def test_upload_rejects_missing_column(client):

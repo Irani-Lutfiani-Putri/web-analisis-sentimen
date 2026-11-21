@@ -7,7 +7,7 @@ flagged by a Superadmin, so this module owns the single rule for both:
 never become test data.
 """
 from app.extensions import db
-from app.models import Comment, User
+from app.models import Comment
 
 LABELS = ('Positif', 'Negatif', 'Netral')
 
@@ -25,11 +25,8 @@ def is_eligible(comment):
     )
 
 
-def set_holdout(comment, admin_id, value):
-    """Flag or unflag a comment as independent test data (Superadmin only)."""
-    admin = db.session.get(User, admin_id)
-    if not admin or admin.role != 'superadmin':
-        raise PermissionError('Hanya Superadmin boleh menetapkan data uji independen')
+def set_holdout(comment, value):
+    """Flag or unflag a comment as independent test data."""
     if value and not is_eligible(comment):
         raise HoldoutError(
             'Beri label manual pada komentar ini sebelum menandainya sebagai data uji independen'

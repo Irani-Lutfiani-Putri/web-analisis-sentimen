@@ -109,20 +109,17 @@ def annotate_dataset(dataset_id, weights, version, conflicting_words=(), progres
     return {"processed": processed, "review": reviewed}
 
 
-def update_manual_label(comment, label, admin_id, note=None):
+def update_manual_label(comment, label, user_id, note=None):
     from datetime import datetime, timezone
     from app.extensions import db
-    from app.models import LabelHistory, User
+    from app.models import LabelHistory
     if label not in {"Positif", "Negatif", "Netral"}:
         raise ValueError("Label manual tidak valid")
-    admin = db.session.get(User, admin_id)
-    if not admin or admin.role != "superadmin":
-        raise PermissionError("Hanya Superadmin boleh mengubah label manual")
-    db.session.add(LabelHistory(comment_id=comment.id, changed_by=admin_id,
+    db.session.add(LabelHistory(comment_id=comment.id, changed_by=user_id,
                                 previous_label=comment.manual_label, new_label=label, note=note))
     comment.manual_label = comment.sentiment_label = label
     comment.label_source = "manual"
-    comment.labeled_by = admin_id
+    comment.labeled_by = user_id
     comment.labeled_at = datetime.now(timezone.utc)
     comment.label_note = note
     comment.review_status = "resolved"
