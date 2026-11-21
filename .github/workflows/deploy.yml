@@ -1,0 +1,129 @@
+name: CI/CD minesentiment
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - ".github/**"
+      - "README.md"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: minesentiment-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mariadb:10.11
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sentiment_freeport_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download pinned InSet lexicon
+        run: |
+          mkdir -p storage/lexicon
+          curl -fsSL \
+            "https://raw.githubusercontent.com/fajri91/InSet/9cb9d2971c575d64f4f0ed13c35048095f072a5b/positive.tsv" \
+            -o storage/lexicon/positive.tsv
+          curl -fsSL \
+            "https://raw.githubusercontent.com/fajri91/InSet/9cb9d2971c575d64f4f0ed13c35048095f072a5b/negative.tsv" \
+            -o storage/lexicon/negative.tsv
+          echo "4d0dc2a6b2fe88a438fe5a61663f45c5cf60ebaeb019d4ca4d31c3315121c2ae  storage/lexicon/positive.tsv" | sha256sum -c -
+          echo "b8d4b231077967d07ae07014b9dcea255301c2b17a2452c215e3d810a4ba3be4  storage/lexicon/negative.tsv" | sha256sum -c -
+
+      - name: Create secondary database
+        run: |
+          python - <<'PY'
+          import pymysql
+          connection = pymysql.connect(host="127.0.0.1", user="root", password="root")
+          with connection.cursor() as cursor:
+              cursor.execute("CREATE DATABASE IF NOT EXISTS sentiment_freeport_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+          connection.close()
+          PY
+
+      - name: Run tests
+        env:
+          DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/sentiment_freeport_ci?charset=utf8mb4
+          TEST_DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/sentiment_freeport_test?charset=utf8mb4
+          SECRET_KEY: test-secret
+        run: python -m pytest -q
+
+  deploy:
+    name: Deploy production
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://minesentiment.web.id/
+    steps:
+      - name: Configure SSH
+        env:
+          MINESENTIMENT_SSH_KEY: ${{ secrets.MINESENTIMENT_SSH_KEY }}
+          MINESENTIMENT_SSH_KNOWN_HOSTS: ${{ secrets.MINESENTIMENT_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$MINESENTIMENT_SSH_KEY" > ~/.ssh/minesentiment
+          printf '%s\n' "$MINESENTIMENT_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/minesentiment ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        env:
+          MINESENTIMENT_SSH_HOST: ${{ secrets.MINESENTIMENT_SSH_HOST }}
+          MINESENTIMENT_SSH_USER: ${{ secrets.MINESENTIMENT_SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/minesentiment \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ServerAliveInterval=15 \
+            -o ConnectTimeout=15 \
+            "$MINESENTIMENT_SSH_USER@$MINESENTIMENT_SSH_HOST" \
+            "sudo -n /usr/local/sbin/deploy-analisis-sentimen $GITHUB_SHA"
+
+      - name: Verify public endpoint
+        env:
+          MINESENTIMENT_HEALTH_URL: ${{ secrets.MINESENTIMENT_HEALTH_URL }}
+        run: |
+          for i in $(seq 1 10); do
+            if curl -fsS --max-time 10 "$MINESENTIMENT_HEALTH_URL" >/dev/null; then
+              echo "OK: $MINESENTIMENT_HEALTH_URL"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Health check gagal: $MINESENTIMENT_HEALTH_URL" >&2
+          exit 1
