@@ -39,11 +39,9 @@
   </form>
   <p class="hint">Label manual yang sudah Anda tetapkan tidak berubah.</p>
 
-  {% if pending_review %}
   <p class="result-count">
-    <a href="{{ labels_url }}">Buka Review dan Label ({{ pending_review }})</a>
+    <a href="{{ labels_url }}">Buka Review dan Label{% if pending_review %} ({{ pending_review }}){% endif %}</a>
   </p>
-  {% endif %}
 
   <form class="filters" method="get" action="{{ url_for('preprocessing.index') }}" role="search">
     <input type="hidden" name="dataset_id" value="{{ dataset.id }}">

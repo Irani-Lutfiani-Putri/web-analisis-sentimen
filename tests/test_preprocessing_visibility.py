@@ -98,3 +98,31 @@ def test_preprocessing_shows_rerun_and_labels_link(dataset):
     assert "<th>Sumber</th>" not in html
     assert "<th>Skor</th>" not in html
     assert "/preprocessing/labels/manual" not in html
+
+
+def test_preprocessing_keeps_labels_link_when_nothing_is_pending(dataset):
+    with dataset.app.app_context():
+        row = Dataset(
+            user_id=db.session.execute(db.select(User).filter_by(email="visibility@test.local")).scalar_one().id,
+            original_filename="clean.csv",
+            stored_filename="clean-private.csv",
+            file_path="private",
+            row_count=1,
+            comment_column="isi",
+            status="validated",
+        )
+        db.session.add(row)
+        db.session.flush()
+        db.session.add(Comment(
+            dataset_id=row.id,
+            row_number=2,
+            comment_text="tambang bagus",
+            sentiment_label="Positif",
+            label_source="lexicon",
+            review_status="accepted",
+        ))
+        db.session.commit()
+        clean_id = row.id
+    client = login(dataset.app, "visibility@test.local")
+    html = client.get(f"/preprocessing?dataset_id={clean_id}").data.decode()
+    assert "Buka Review dan Label" in html
