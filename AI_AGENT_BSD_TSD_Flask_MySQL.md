@@ -6,6 +6,8 @@
 
 **Tujuan dokumen:** Jadikan dokumen ini sebagai instruksi utama untuk AI coding agent ketika merancang, membangun, menguji, atau memperbaiki aplikasi. Ikuti rancangan dan UI yang sudah ada. Jangan mengganti topik, menambah halaman besar yang tidak diminta, atau menyatakan fitur sudah berfungsi jika belum diimplementasikan dan diuji.
 
+> **Pembaruan 21 November 2026:** Bagian role di dokumen ini digantikan oleh `docs/ALUR-AKSES.md`. Aplikasi tidak memakai role `superadmin`, `admin`, atau `user`. Register membuat akun, semua akun setara, dan setiap akun hanya melihat dataset miliknya sendiri. Review, label manual, dan holdout ada di `/labels`, di luar sidebar. Aturan role lama di dokumen ini tidak berlaku.
+
 ---
 
 # BAGIAN A — BUSINESS SOLUTION DESIGN (BSD)

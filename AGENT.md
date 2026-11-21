@@ -18,7 +18,7 @@ Jika ada ketidaksesuaian, prioritaskan batasan studi kasus dan aturan pada `STRI
 
 ## 2. Tujuan Tugas Agent
 
-Bangun aplikasi web yang berfungsi untuk mengunggah dataset komentar YouTube, memberi label awal menggunakan lexicon pada komentar yang belum memiliki label manual, melakukan preprocessing, melatih dan mengevaluasi SVM, serta menguji komentar baru. Terapkan autentikasi dan otorisasi role Superadmin/User. Simpan data terstruktur di MySQL dan artefak model/vectorizer di penyimpanan file privat.
+Bangun aplikasi web yang berfungsi untuk mengunggah dataset komentar YouTube, memberi label awal menggunakan lexicon pada komentar yang belum memiliki label manual, melakukan preprocessing, melatih dan mengevaluasi SVM, serta menguji komentar baru. Terapkan autentikasi dan isolasi data per akun tanpa role. Simpan data terstruktur di MySQL dan artefak model/vectorizer di penyimpanan file privat.
 
 **Jangan langsung menulis ulang seluruh proyek.** Audit dahulu repositori, identifikasi komponen yang sudah berjalan, lalu kerjakan per tahap dengan pengujian setelah setiap tahap.
 
@@ -52,12 +52,12 @@ Bangun aplikasi web yang berfungsi untuk mengunggah dataset komentar YouTube, me
 1. Siapkan tabel yang diperlukan, minimal mencakup pengguna, dataset, komentar, hasil pelabelan/metadata label, eksperimen model, dan prediksi/testing. Sesuaikan dengan skema BSD/TSD.
 2. Gunakan primary key, foreign key, indeks yang diperlukan, timestamp, dan `utf8mb4`.
 3. Terapkan register, login, logout, hashing password, session aman, validasi input, dan proteksi CSRF untuk form berbasis session.
-4. Role yang didukung: `superadmin` dan `user`.
-5. Registrasi publik harus selalu menetapkan role `user`; jangan menerima role dari input register. Pembuatan Superadmin dilakukan melalui mekanisme administrasi aman.
+4. Tidak ada role. Semua akun hasil register setara.
+5. Registrasi publik tidak boleh menerima role dari input register. Setiap akun hanya melihat dataset miliknya sendiri.
 6. Buat pemeriksaan otorisasi backend untuk setiap route/endpoint yang dibatasi.
 7. Isolasi data berdasarkan pemilik atau izin yang memang ditetapkan; jangan menganggap ID pada URL sebagai bukti hak akses.
 
-**Gerbang selesai tahap 2:** pengujian login/logout/register berhasil, password tersimpan sebagai hash, dan user biasa tidak dapat mengakses endpoint Superadmin secara langsung.
+**Gerbang selesai tahap 2:** pengujian login/logout/register berhasil, password tersimpan sebagai hash, dan akun tidak dapat mengakses dataset atau komentar milik akun lain.
 
 ### Tahap 3 — Implementasi UI dasar sesuai prototype
 
@@ -93,12 +93,12 @@ Bangun aplikasi web yang berfungsi untuk mengunggah dataset komentar YouTube, me
 5. Simpan label lexicon, skor, versi/sumber kamus, status review, dan waktu pemrosesan secara terpisah dari label manual.
 6. Gunakan normalisasi ringan internal untuk pencocokan lexicon bila perlu. Tahap ini tidak boleh menggantikan hasil preprocessing utama.
 7. Perlakukan komentar dengan skor nol, konflik polaritas, negasi, sarkasme, atau bukti lemah sebagai perlu review bila aturan lexicon tidak cukup untuk menentukan kelas. Jangan otomatis menyamakan skor nol dengan Netral.
-8. Hanya Superadmin dapat mengakses metadata sumber label, skor, identitas pelabel, catatan, dan melakukan pelabelan/koreksi manual.
+8. Metadata sumber label, skor, identitas pelabel, dan catatan hanya tampil di halaman Review dan Label untuk dataset milik akun. Pelabelan dan koreksi manual tersedia untuk semua akun pada dataset sendiri.
 9. User biasa hanya melihat komentar dan label akhir sesuai izin. Batasi data pada backend; jangan sekadar menyembunyikan kolom dengan CSS/JavaScript.
 10. Sediakan filter, pencarian, pagination, ringkasan label, tabel hasil, dan tombol **Lanjut ke Preprocessing** di dalam halaman yang sama dan tetap mengikuti prototype.
 11. Jangan menggunakan angka contoh sebagai statistik aktual. Jika lexicon belum dijalankan, tampilkan status belum diproses.
 
-**Gerbang selesai tahap 5:** label manual tetap tidak berubah setelah lexicon dijalankan; data tanpa label diproses; komentar meragukan ditandai untuk review; metadata sensitif hanya dapat diakses Superadmin.
+**Gerbang selesai tahap 5:** label manual tetap tidak berubah setelah lexicon dijalankan; data tanpa label diproses; komentar meragukan ditandai untuk review; metadata label hanya tampil di halaman Review dan Label untuk dataset milik akun.
 
 ### Tahap 6 — Preprocessing teks
 
@@ -165,7 +165,7 @@ Ketentuan:
 Jalankan dan dokumentasikan pengujian minimal berikut:
 - Register, login, logout, dan session.
 - Akses halaman privat tanpa login.
-- User biasa mencoba route Superadmin melalui URL/API langsung.
+- Akun mencoba membuka atau mengubah dataset akun lain melalui URL/API langsung.
 - Upload CSV valid, tidak valid, kosong, salah kolom, dan encoding bermasalah.
 - Label manual tidak ditimpa lexicon.
 - Skor lexicon tidak meyakinkan masuk status review sesuai aturan.
@@ -204,7 +204,7 @@ Jalankan dan dokumentasikan pengujian minimal berikut:
 
 Proyek dinyatakan selesai hanya ketika:
 1. Semua halaman utama sesuai prototype.
-2. Login/role dan pembatasan Superadmin berfungsi di backend.
+2. Login dan isolasi data per akun berfungsi di backend.
 3. CSV tervalidasi dan tersimpan secara konsisten.
 4. Lexicon mendahului preprocessing dan tidak menimpa label manual.
 5. Preprocessing, TF-IDF, training SVM, evaluasi 3 kelas, single testing, dan batch testing dapat dijalankan.

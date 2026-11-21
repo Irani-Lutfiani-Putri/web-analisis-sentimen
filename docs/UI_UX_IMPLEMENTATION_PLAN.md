@@ -4,6 +4,8 @@
 **Stack wajib:** Flask, Jinja/HTML, CSS, JavaScript, MySQL, pandas, scikit-learn, Sastrawi.  
 **Status:** Rencana implementasi per phase. Jangan mengubah business logic atau data penelitian hanya demi desain.
 
+> **Pembaruan 21 November 2026:** Konsep role di dokumen ini digantikan. Tidak ada `superadmin`, `admin`, atau `user`. Semua akun setara. Review, label manual, dan holdout ada di `/labels`, di luar sidebar. Preprocessing hanya menampilkan label akhir. Lihat `docs/ALUR-AKSES.md`.
+
 ## 0. Instruksi utama
 
 Sebelum coding, baca `STRICT.md`, `README.md`, route, model database, services, templates, CSS/JS, migration, dan tests yang relevan. Audit perilaku yang sudah bekerja dan lakukan perubahan sekecil mungkin. Kerjakan satu phase pada satu waktu; setelah setiap phase, jalankan tes relevan dan laporkan hasil sebenarnya. Jangan mengklaim fitur/tes berhasil jika belum dijalankan.

@@ -1,7 +1,7 @@
 """Independent manual holdout: eligibility, marking and readiness summary.
 
 The training service only accepts test rows that carry a manual label and were
-flagged by a Superadmin, so this module owns the single rule for both:
+flagged by the dataset owner, so this module owns the single rule for both:
 ``manual_label`` must equal ``sentiment_label`` and ``label_source`` must be
 ``manual``. Nothing here invents labels; a comment without a manual label can
 never become test data.

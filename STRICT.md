@@ -18,8 +18,8 @@ Keputusan pemilik proyek tanggal 27 Oktober 2026 ini menggantikan aturan visual/
 2. Gunakan token warna: primary `#F13E93`, primary-soft `#F891BB`, accent `#F9D0CD`, info/highlight `#FAFFCB`, page `#FFF7F9`, surface `#FFFFFF`, text `#23121B`, muted `#7A6671`.
 3. Warna semantik sentimen: Positif `#10B981` dengan latar `#E6F4EA`; Netral `#F59E0B` dengan latar `#FEF3C7`; Negatif `#EF4444` dengan latar `#FEE2E2`. Jangan menggunakan magenta untuk menyamarkan kategori sentimen.
 4. Utamakan desktop sekitar 1280–1440 px tetapi wajib responsif. Uji paling sedikit 390 px, 768 px, 1024 px, dan 1366/1440 px. Sidebar desktop berada di kiri; tablet dapat dilipat; mobile menggunakan drawer.
-5. Halaman produk yang diizinkan: Landing Page, Login, Register, Dashboard, Preprocessing, Klasifikasi, Hasil Klasifikasi, Testing, serta Kelola Dataset khusus Superadmin.
-6. Sidebar halaman kerja: **Dashboard, Preprocessing, Klasifikasi, Hasil Klasifikasi, Testing, Logout**. Menu **Kelola Dataset** hanya untuk Superadmin.
+5. Halaman produk yang diizinkan: Landing Page, Login, Register, Dashboard, Preprocessing, Klasifikasi, Testing, serta Review dan Label. Halaman Review dan Label tidak ditampilkan di sidebar.
+6. Sidebar halaman kerja: **Dashboard, Preprocessing, Klasifikasi, Testing, Logout**. Tidak ada menu Review dan Label atau Kelola Dataset.
 7. Impor dataset dimulai melalui modal **Impor Dataset** dari Dashboard, bukan menu sidebar permanen. Route upload yang sudah ada boleh dipertahankan sebagai fallback/deep link dan handler backend.
 8. Setelah login berhasil, arahkan pengguna ke Dashboard. Jika pengguna belum memiliki dataset, buka modal Impor Dataset secara otomatis. Jangan membuka modal berulang pada setiap refresh; batasi prompt otomatis per login/session. Pengguna yang sudah memiliki dataset masuk ke Dashboard normal.
 9. Dashboard harus menyediakan tombol untuk membuka kembali modal Impor Dataset. Modal berisi upload CSV dan field kolom yang memang didukung backend; jangan menambahkan preset/dataset wisata Bali atau dukungan format yang belum ada.
@@ -29,7 +29,7 @@ Keputusan pemilik proyek tanggal 27 Oktober 2026 ini menggantikan aturan visual/
 13. Setiap nilai ringkasan, grafik, jumlah data, progres, label, dan metrik harus berasal dari database atau proses aktual. Jika data belum tersedia, tampilkan empty state. Jangan memakai angka contoh dari referensi sebagai hasil penelitian.
 14. Gunakan modal yang aksesibel: judul terhubung ke dialog, fokus keyboard dikelola, tersedia tombol tutup dan dukungan Escape, error diumumkan dengan benar, dan interaksi keyboard tidak rusak.
 15. Jangan membuat wizard yang mengunci navigasi. Pengguna tetap dapat membuka halaman lain, tetapi sistem harus menjelaskan jika prasyarat pada halaman tersebut belum terpenuhi.
-16. Pertahankan aturan role, CSRF, dan otorisasi backend. Penyembunyian tombol/menu di frontend bukan pengganti pemeriksaan server.
+16. Pertahankan isolasi data per akun, CSRF, dan otorisasi backend. Penyembunyian tombol/menu di frontend bukan pengganti pemeriksaan server.
 ## C. Urutan Proses yang Wajib
 
 Urutan default sistem:
@@ -46,12 +46,12 @@ Urutan default sistem:
 
 ## D. Hak Akses dan Privasi Pelabelan
 
-1. Hanya role `superadmin` yang boleh melakukan pelabelan manual atau mengubah label manual.
-2. Hanya Superadmin yang boleh melihat `label_source`, `lexicon_score`, identitas pelabel, waktu pelabelan, catatan anotasi, serta riwayat internal pelabelan.
-3. Pengguna biasa boleh melihat komentar dan label sentimen akhir jika diizinkan, tetapi tidak boleh menerima metadata internal pelabelan melalui HTML, JSON/API, atribut data, atau response tersembunyi.
+1. Tidak ada role. Semua akun setara.
+2. Setiap akun hanya boleh melihat dan mengubah dataset miliknya sendiri.
+3. Metadata label (`label_source`, `lexicon_score`, identitas pelabel, waktu pelabelan, catatan anotasi, dan riwayat) hanya tampil di halaman Review dan Label untuk dataset milik akun tersebut. Metadata ini tidak dikirim ke halaman Preprocessing.
 4. Otorisasi harus diperiksa di backend pada setiap route/endpoint; jangan mengandalkan penyembunyian tombol, CSS, JavaScript, atau pemeriksaan frontend.
-5. Uji akses dengan memanggil endpoint langsung sebagai user biasa, bukan hanya memastikan tombol tidak terlihat.
-6. Registrasi publik tidak boleh menerima role Superadmin dari request. Akun baru harus menjadi `user`.
+5. Uji akses dengan memanggil endpoint langsung memakai akun lain, bukan hanya memastikan tombol tidak terlihat.
+6. Registrasi publik tidak boleh menerima role dari request.
 7. Password tidak boleh disimpan dalam bentuk plaintext.
 8. Catat akun dan waktu untuk perubahan label manual. Jangan mengubah sumber label atau riwayat secara diam-diam.
 
@@ -111,12 +111,12 @@ Pekerjaan tidak boleh dinyatakan selesai jika salah satu hal berikut belum terpe
 - [ ] Design system magenta/pink pastel diterapkan konsisten dan responsif; bukan lagi memakai aturan monokrom lama.
 - [ ] Login pengguna tanpa dataset menampilkan modal Impor Dataset di atas Dashboard; pengguna yang punya dataset tidak dipaksa melihat modal setiap refresh.
 - [ ] Modal impor dapat dibuka kembali dari Dashboard, mengirim CSV ke backend yang ada, mempertahankan CSRF/validasi, serta menampilkan pesan error dan sukses yang benar.
-- [ ] Sidebar memuat Dashboard, Preprocessing, Klasifikasi, Hasil Klasifikasi, Testing, dan Logout; Kelola Dataset hanya untuk Superadmin.
+- [ ] Sidebar memuat Dashboard, Preprocessing, Klasifikasi, Testing, dan Logout; Review dan Label tidak ada di sidebar.
 - [ ] Tidak ada menu utama Lexicon. Lexicon → Preprocessing tetap sesuai urutan wajib.
 - [ ] Klasifikasi terpisah dari Hasil Klasifikasi; hasil hanya memakai eksperimen completed dan data aktual.
 - [ ] Progress, metrik, jumlah data, dan status proses bukan animasi/angka palsu.
 - [ ] Label manual tidak tertimpa lexicon.
-- [ ] Metadata sumber label dan pelabelan manual terlindungi di backend untuk Superadmin.
+- [ ] Metadata sumber label dan pelabelan manual hanya tampil di halaman Review dan Label untuk dataset milik akun.
 - [ ] Data CSV divalidasi dan disimpan dengan benar di MySQL.
 - [ ] TF-IDF bebas data leakage dan artefak vectorizer selalu cocok dengan model.
 - [ ] Evaluasi tiga kelas memakai confusion matrix 3 × 3 dan metrik aktual.

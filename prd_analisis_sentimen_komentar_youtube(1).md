@@ -24,7 +24,7 @@ Opini publik di platform media sosial seperti YouTube sering kali mencerminkan s
 
 1. **Peneliti / Mahasiswa / Data Scientist:** Pengguna teknis yang memerlukan transparansi pipeline (tahap preprocessing, pembagian split data, dan evaluasi matriks performa model).
 2. **Analis Kebijakan / PR / Stakeholder:** Pengguna manajerial yang berfokus pada hasil analisis sentimen di dashboard untuk pengambilan keputusan atau penyusunan laporan respons publik.
-3. **Admin Sistem:** Pengguna yang mengelola otentikasi (login/register) dan upload dataset utama.
+3. **Pengguna Terdaftar:** Pengguna yang membuat akun lewat register, login, dan mengelola dataset miliknya sendiri. Semua akun setara.
 
 ---
 
