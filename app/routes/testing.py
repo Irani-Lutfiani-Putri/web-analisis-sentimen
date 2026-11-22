@@ -1,7 +1,7 @@
 """Authenticated single and CSV batch inference."""
 from flask import Blueprint, current_app, render_template, request
 from flask_login import current_user, login_required
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import ModelRun, Prediction
 from app.services.prediction_service import PredictionError, predict_single, predict_batch
 from app.services.training_service import TrainingError, load_run
@@ -20,6 +20,7 @@ def index():
 
 
 @bp.post('/testing/single')
+@limiter.limit("60 per minute")
 @login_required
 def single():
     run = latest_run()
@@ -41,6 +42,7 @@ def single():
 
 
 @bp.post('/testing/batch')
+@limiter.limit("10 per minute")
 @login_required
 def batch():
     run = latest_run()

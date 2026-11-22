@@ -4,7 +4,7 @@ from pathlib import Path
 from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import Comment, Dataset
 from app.services.comment_query import (
     PAGE_SIZE, PREPROCESS_FILTER_KEYS, filter_options, label_counts, normalize_filter,
@@ -98,6 +98,7 @@ def labeling():
 
 
 @bp.post('/preprocessing/lexicon/run')
+@limiter.limit("10 per minute")
 @login_required
 def run_lexicon():
     dataset = owned_dataset(request.form.get('dataset_id', type=int))
@@ -125,6 +126,7 @@ def run_lexicon():
 
 
 @bp.post('/preprocessing/run')
+@limiter.limit("10 per minute")
 @login_required
 def run_preprocessing():
     dataset = owned_dataset(request.form.get('dataset_id', type=int))

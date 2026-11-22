@@ -6,7 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import load_config
-from app.extensions import db, login_manager, csrf, migrate
+from app.extensions import db, login_manager, csrf, migrate, limiter
 from app.routes.auth import bp as auth_bp
 from app.routes.pages import bp as pages_bp
 from app.routes.datasets import bp as datasets_bp
@@ -25,6 +25,7 @@ def create_app():
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+    limiter.init_app(app)
 
     @app.errorhandler(413)
     def upload_too_large(error):

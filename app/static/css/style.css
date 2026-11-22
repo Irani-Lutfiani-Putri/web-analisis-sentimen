@@ -210,3 +210,10 @@ table a:hover{color:var(--color-primary)}
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
   .content,.page-header,.dashboard-card,.hero,.hero .kicker,.hero h1,.hero>p:not(.kicker),.hero .button,.info,.public-header,.auth-card,.auth-card .kicker,.auth-card h1,.auth-card form,.auth-links,.account-block,.sidebar form{animation:none!important}
 }
+
+/* Mobile drawer fixes: full-width content when the sidebar is off-canvas,
+   and an opaque drawer so page content does not bleed through the menu. */
+@media (max-width: 760px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { background: var(--white); }
+}
