@@ -4,19 +4,76 @@
 <header class="page-header">
   <p class="kicker">Alur pengolahan</p>
   <h1>Preprocessing</h1>
-  <p>Pelabelan otomatis dilakukan saat CSV diunggah, sebelum pembersihan teks.</p>
+  <p>Pelabelan otomatis selesai di halaman terpisah. Teks dibersihkan setelah label tersedia.</p>
 </header>
 
-{% if lexicon_error %}
-<p role="alert" class="notice">
-  Kamus sentimen tidak dapat dipakai: {{ lexicon_error }}. Letakkan
-  <code>positive.tsv</code> dan <code>negative.tsv</code> di folder kamus sentimen,
-  lalu muat ulang halaman.
-</p>
-{% endif %}
+<section class="panel">
+  <h2>1. Preprocessing teks</h2>
+  <ol class="preprocessing-stages" aria-label="Tahapan preprocessing">
+    <li>
+      <span class="stage-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false"><path d="M4 7h16M7 12h10M9 17h6"/></svg>
+      </span>
+      <span>Cleaning</span>
+    </li>
+    <li>
+      <span class="stage-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false"><path d="M5 18 10 6h4l5 12M7 14h10"/></svg>
+      </span>
+      <span>Case Folding</span>
+    </li>
+    <li>
+      <span class="stage-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false"><path d="M4 6h16M7 12h10M10 18h4"/><path d="m17 16 3 3m0-3-3 3"/></svg>
+      </span>
+      <span>Stopword Removal</span>
+    </li>
+    <li>
+      <span class="stage-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false"><path d="M12 20V9M12 14c-4 0-7-2-7-6 4 0 7 2 7 6Zm0-3c4 0 7-2 7-6-4 0-7 2-7 6Z"/></svg>
+      </span>
+      <span>Stemming dengan Sastrawi</span>
+    </li>
+  </ol>
+
+  {% if dataset %}
+  <p class="result-count">
+    <a href="{{ url_for('preprocessing.labeling', dataset_id=dataset.id) }}">Buka Pelabelan Otomatis</a>
+  </p>
+  <form method="post" action="{{ url_for('preprocessing.run_preprocessing') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="dataset_id" value="{{ dataset.id }}">
+    <button type="submit" class="button" data-progress="Preprocessing teks">Jalankan Preprocessing</button>
+  </form>
+  {% endif %}
+
+  {% if comparisons %}
+  <table>
+    <caption>Perbandingan komentar asli dan hasil preprocessing</caption>
+    <thead>
+      <tr>
+        <th>Komentar asli</th>
+        <th>Hasil preprocessing</th>
+        <th>Label</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in comparisons %}
+      <tr>
+        <td>{{ item.original }}</td>
+        <td>{{ item.cleaned or 'Kosong setelah preprocessing' }}</td>
+        <td>{{ item.label }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Belum ada hasil teks untuk dibandingkan.</p>
+  {% endif %}
+</section>
 
 <section class="panel">
-  <h2>1. Pelabelan Otomatis</h2>
+  <h2>2. Komentar dan label akhir</h2>
 
   {% if dataset %}
   <p>
@@ -28,16 +85,6 @@
     Belum ada label akhir.
     {% endif %}
   </p>
-
-  <p>Pelabelan otomatis berjalan saat import. Gunakan tombol ini jika label perlu dihitung ulang.</p>
-  <form method="post" action="{{ url_for('preprocessing.run_lexicon') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="dataset_id" value="{{ dataset.id }}">
-    <button type="submit" class="button" data-progress="Menghitung ulang label otomatis">
-      Hitung Ulang Label Otomatis
-    </button>
-  </form>
-  <p class="hint">Label manual yang sudah Anda tetapkan tidak berubah.</p>
 
   <p class="result-count">
     <a href="{{ labels_url }}">Buka Review dan Label{% if pending_review %} ({{ pending_review }}){% endif %}</a>
@@ -95,68 +142,6 @@
   {% endif %}
   {% else %}
   <p role="status">Belum ada dataset. Import CSV terlebih dahulu.</p>
-  {% endif %}
-</section>
-
-<section class="panel">
-  <h2>2. Preprocessing teks</h2>
-  <ol class="preprocessing-stages" aria-label="Tahapan preprocessing">
-    <li>
-      <span class="stage-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" focusable="false"><path d="M4 7h16M7 12h10M9 17h6"/></svg>
-      </span>
-      <span>Cleaning</span>
-    </li>
-    <li>
-      <span class="stage-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" focusable="false"><path d="M5 18 10 6h4l5 12M7 14h10"/></svg>
-      </span>
-      <span>Case Folding</span>
-    </li>
-    <li>
-      <span class="stage-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" focusable="false"><path d="M4 6h16M7 12h10M10 18h4"/><path d="m17 16 3 3m0-3-3 3"/></svg>
-      </span>
-      <span>Stopword Removal</span>
-    </li>
-    <li>
-      <span class="stage-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" focusable="false"><path d="M12 20V9M12 14c-4 0-7-2-7-6 4 0 7 2 7 6Zm0-3c4 0 7-2 7-6-4 0-7 2-7 6Z"/></svg>
-      </span>
-      <span>Stemming dengan Sastrawi</span>
-    </li>
-  </ol>
-
-  {% if dataset %}
-  <form method="post" action="{{ url_for('preprocessing.run_preprocessing') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="dataset_id" value="{{ dataset.id }}">
-    <button type="submit" class="button" data-progress="Preprocessing teks">Jalankan Preprocessing</button>
-  </form>
-  {% endif %}
-
-  {% if comparisons %}
-  <table>
-    <caption>Perbandingan komentar asli dan hasil preprocessing</caption>
-    <thead>
-      <tr>
-        <th>Komentar asli</th>
-        <th>Hasil preprocessing</th>
-        <th>Label</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in comparisons %}
-      <tr>
-        <td>{{ item.original }}</td>
-        <td>{{ item.cleaned or 'Kosong setelah preprocessing' }}</td>
-        <td>{{ item.label }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p>Belum ada hasil teks untuk dibandingkan.</p>
   {% endif %}
 </section>
 

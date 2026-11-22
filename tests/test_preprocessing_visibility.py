@@ -90,14 +90,24 @@ def test_preprocessing_pending_count_includes_review_and_unlabeled(dataset):
     assert "Buka Review dan Label (2)" in html
 
 
-def test_preprocessing_shows_rerun_and_labels_link(dataset):
+def test_preprocessing_links_to_labeling_page(dataset):
     client = login(dataset.app, "visibility@test.local")
     html = client.get(f"/preprocessing?dataset_id={dataset.id}").data.decode()
-    assert "Hitung Ulang Label Otomatis" in html
+    assert "Buka Pelabelan Otomatis" in html
+    assert "Hitung Ulang Label Otomatis" not in html
     assert "Buka Review dan Label (2)" in html
     assert "<th>Sumber</th>" not in html
     assert "<th>Skor</th>" not in html
     assert "/preprocessing/labels/manual" not in html
+
+
+def test_labeling_page_shows_counts_and_rerun(dataset):
+    client = login(dataset.app, "visibility@test.local")
+    html = client.get(f"/preprocessing/labeling?dataset_id={dataset.id}").data.decode()
+    assert "Hitung Ulang Label Otomatis" in html
+    assert "Buka Review dan Label (2)" in html
+    assert "2 komentar menunggu label manual" in html
+    assert "Kembali ke Preprocessing" in html
 
 
 def test_preprocessing_keeps_labels_link_when_nothing_is_pending(dataset):

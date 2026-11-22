@@ -98,6 +98,7 @@ def test_upload_starts_lexicon_job_automatically(monkeypatch, tmp_path, lexicon)
         response = upload(client, token, CSV_BODY)
         assert response.status_code == 302, response.data[:300]
         location = response.headers["Location"]
+        assert "/preprocessing/labeling" in location
         assert "job=" in location
         job_id = location.split("job=")[1].split("&")[0]
 

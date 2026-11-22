@@ -64,7 +64,7 @@ Bangun aplikasi web yang berfungsi untuk mengunggah dataset komentar YouTube, me
 1. Pertahankan identitas visual PRD/prototype: minimalis, monokromatik hitam-putih-abu-abu/slate, kontras jelas, dan fokus desktop 1280–1440 px.
 2. Buat atau pertahankan halaman: Landing Page, Login, Register, Import Dataset, Dashboard, Preprocessing, Klasifikasi, dan Testing.
 3. Untuk halaman kerja, pertahankan sidebar prototype: Dashboard, Preprocessing, Klasifikasi, Testing, dan Logout. Import Dataset tetap dapat diakses dari aksi upload yang ada pada Dashboard/prototype.
-4. **Jangan menambahkan menu utama Lexicon di sidebar.** Tahap Lexicon ditempatkan sebagai langkah pertama di dalam halaman Preprocessing.
+4. **Jangan menambahkan menu utama Lexicon di sidebar.** Tahap Lexicon ditempatkan di halaman **Pelabelan Otomatis** yang dibuka dari halaman Preprocessing atau setelah impor CSV.
 5. Jangan mengganti tata letak, palet warna, hierarki visual, atau bentuk form secara sepihak jika prototype tersedia.
 6. Setiap halaman harus menyediakan status loading, sukses, empty state, validasi, dan error state yang konsisten.
 7. Hindari angka metrik statis yang terlihat seperti hasil nyata. Gunakan data MySQL aktual atau empty state.
@@ -83,7 +83,7 @@ Bangun aplikasi web yang berfungsi untuk mengunggah dataset komentar YouTube, me
 
 **Gerbang selesai tahap 4:** CSV valid dapat diimpor, CSV invalid ditolak dengan pesan yang informatif, dan data yang ditampilkan cocok dengan isi berkas.
 
-### Tahap 5 — Pelabelan Lexicon sebagai langkah pertama Preprocessing
+### Tahap 5 — Pelabelan Lexicon di halaman Pelabelan Otomatis
 
 1. Implementasikan layanan lexicon yang terpisah dari route dan UI.
 2. Jalankan lexicon sebelum preprocessing utama, sesuai urutan produk:

@@ -18,13 +18,13 @@ Keputusan pemilik proyek tanggal 27 Oktober 2026 ini menggantikan aturan visual/
 2. Gunakan token warna: primary `#F13E93`, primary-soft `#F891BB`, accent `#F9D0CD`, info/highlight `#FAFFCB`, page `#FFF7F9`, surface `#FFFFFF`, text `#23121B`, muted `#7A6671`.
 3. Warna semantik sentimen: Positif `#10B981` dengan latar `#E6F4EA`; Netral `#F59E0B` dengan latar `#FEF3C7`; Negatif `#EF4444` dengan latar `#FEE2E2`. Jangan menggunakan magenta untuk menyamarkan kategori sentimen.
 4. Utamakan desktop sekitar 1280–1440 px tetapi wajib responsif. Uji paling sedikit 390 px, 768 px, 1024 px, dan 1366/1440 px. Sidebar desktop berada di kiri; tablet dapat dilipat; mobile menggunakan drawer.
-5. Halaman produk yang diizinkan: Landing Page, Login, Register, Dashboard, Preprocessing, Klasifikasi, Testing, serta Review dan Label. Halaman Review dan Label tidak ditampilkan di sidebar.
+5. Halaman produk yang diizinkan: Landing Page, Login, Register, Dashboard, Preprocessing, Pelabelan Otomatis, Klasifikasi, Testing, serta Review dan Label. Halaman Pelabelan Otomatis dan Review dan Label tidak ditampilkan di sidebar.
 6. Sidebar halaman kerja: **Dashboard, Preprocessing, Klasifikasi, Testing, Logout**. Tidak ada menu Review dan Label atau Kelola Dataset.
 7. Impor dataset dimulai melalui modal **Impor Dataset** dari Dashboard, bukan menu sidebar permanen. Route upload yang sudah ada boleh dipertahankan sebagai fallback/deep link dan handler backend.
 8. Setelah login berhasil, arahkan pengguna ke Dashboard. Jika pengguna belum memiliki dataset, buka modal Impor Dataset secara otomatis. Jangan membuka modal berulang pada setiap refresh; batasi prompt otomatis per login/session. Pengguna yang sudah memiliki dataset masuk ke Dashboard normal.
 9. Dashboard harus menyediakan tombol untuk membuka kembali modal Impor Dataset. Modal berisi upload CSV dan field kolom yang memang didukung backend; jangan menambahkan preset/dataset wisata Bali atau dukungan format yang belum ada.
 10. Jika upload gagal, tampilkan error yang aman dan dapat dipahami di modal sehingga pengguna dapat memilih ulang berkas. Jika upload berhasil, ikuti proses backend yang ada: simpan ke MySQL, jalankan pelabelan InSet otomatis bila kamus valid tersedia, lalu arahkan ke Preprocessing dan tampilkan status job aktual.
-11. **Jangan menambahkan menu utama “Lexicon”.** Lexicon adalah langkah pertama pada halaman Preprocessing.
+11. **Jangan menambahkan menu utama “Lexicon”.** Pelabelan otomatis punya halaman sendiri, yaitu **Pelabelan Otomatis**, yang dibuka dari halaman Preprocessing atau setelah impor CSV.
 12. Training dan pengaturan model berada di halaman Klasifikasi; ringkasan eksperimen, metrik, confusion matrix, dan hasil evaluasi tampil pada halaman terpisah **Hasil Klasifikasi**. Jangan membuat menu Evaluasi ketiga.
 13. Setiap nilai ringkasan, grafik, jumlah data, progres, label, dan metrik harus berasal dari database atau proses aktual. Jika data belum tersedia, tampilkan empty state. Jangan memakai angka contoh dari referensi sebagai hasil penelitian.
 14. Gunakan modal yang aksesibel: judul terhubung ke dialog, fokus keyboard dikelola, tersedia tombol tutup dan dukungan Escape, error diumumkan dengan benar, dan interaksi keyboard tidak rusak.
@@ -36,7 +36,7 @@ Urutan default sistem:
 
 **Upload Dataset → Pelabelan Lexicon → Preprocessing → Klasifikasi SVM → Hasil dan Evaluasi → Testing.**
 
-1. Tahap Lexicon harus tampil sebagai langkah pertama dalam halaman Preprocessing, bukan menu utama tersendiri.
+1. Tahap Lexicon tampil di halaman **Pelabelan Otomatis** yang dibuka dari Preprocessing, bukan menu utama tersendiri.
 2. Lexicon boleh melakukan normalisasi ringan internal untuk pencocokan, tetapi preprocessing penelitian tetap dilakukan setelah tahap tersebut.
 3. Label manual yang sudah sah harus diprioritaskan dan tidak boleh ditimpa lexicon.
 4. Lexicon hanya menetapkan label otomatis pada komentar yang belum memiliki label manual.
@@ -112,7 +112,7 @@ Pekerjaan tidak boleh dinyatakan selesai jika salah satu hal berikut belum terpe
 - [ ] Login pengguna tanpa dataset menampilkan modal Impor Dataset di atas Dashboard; pengguna yang punya dataset tidak dipaksa melihat modal setiap refresh.
 - [ ] Modal impor dapat dibuka kembali dari Dashboard, mengirim CSV ke backend yang ada, mempertahankan CSRF/validasi, serta menampilkan pesan error dan sukses yang benar.
 - [ ] Sidebar memuat Dashboard, Preprocessing, Klasifikasi, Testing, dan Logout; Review dan Label tidak ada di sidebar.
-- [ ] Tidak ada menu utama Lexicon. Lexicon → Preprocessing tetap sesuai urutan wajib.
+- [ ] Tidak ada menu utama Lexicon. Pelabelan otomatis tetap berjalan sebelum Preprocessing dan punya halaman sendiri.
 - [ ] Klasifikasi terpisah dari Hasil Klasifikasi; hasil hanya memakai eksperimen completed dan data aktual.
 - [ ] Progress, metrik, jumlah data, dan status proses bukan animasi/angka palsu.
 - [ ] Label manual tidak tertimpa lexicon.

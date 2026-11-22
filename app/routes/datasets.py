@@ -120,14 +120,14 @@ def upload():
                 summary=summary,
                 filename=original,
                 lexicon_warning="Dataset tersimpan, tetapi pelabelan otomatis gagal dimulai. "
-                                "Anda dapat menjalankannya dari halaman Preprocessing.",
+                                "Anda dapat menjalankannya dari halaman Pelabelan Otomatis.",
             )
-        return redirect(url_for("preprocessing.index", dataset_id=dataset.id, job=job_id))
+        return redirect(url_for("preprocessing.labeling", dataset_id=dataset.id, job=job_id))
 
     return _dashboard_modal(
         summary=summary,
         filename=original,
         lexicon_warning="Dataset tersimpan tanpa label otomatis karena kamus sentimen belum tersedia. "
                         "Letakkan positive.tsv dan negative.tsv di folder lexicon, "
-                        "lalu jalankan pelabelan dari halaman Preprocessing atau labeli manual di halaman Review dan Label.",
+                        "lalu jalankan pelabelan dari halaman Pelabelan Otomatis atau labeli manual di halaman Review dan Label.",
     )

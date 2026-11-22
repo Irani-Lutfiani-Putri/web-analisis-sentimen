@@ -49,7 +49,7 @@ Folder `storage/uploads`, `storage/models`, dan `storage/lexicon` berada di luar
 
 ## Alur pelabelan otomatis dan akun
 
-Pelabelan lexicon **berjalan otomatis** segera setelah CSV diimpor. Setelah berkas tersimpan, aplikasi membuat job background, melabeli baris dengan kamus InSet, lalu mengarahkan Anda ke halaman **Preprocessing** dengan dialog progres yang menampilkan `selesai/total` secara langsung. Tidak ada tombol yang perlu ditekan.
+Pelabelan lexicon **berjalan otomatis** segera setelah CSV diimpor. Setelah berkas tersimpan, aplikasi membuat job background, melabeli baris dengan kamus InSet, lalu mengarahkan Anda ke halaman **Pelabelan Otomatis** dengan dialog progres yang menampilkan `selesai/total` secara langsung. Halaman itu juga memuat tombol hitung ulang dan tautan ke Review dan Label.
 
 Register membuat akun. Setelah register, login dengan akun tersebut. Semua akun setara dan hanya melihat dataset miliknya sendiri. Tidak ada role `superadmin`, `admin`, atau `user`.
 
