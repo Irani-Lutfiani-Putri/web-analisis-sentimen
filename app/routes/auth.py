@@ -2,7 +2,7 @@ from functools import wraps
 from flask import Blueprint, abort, redirect, request, url_for, render_template
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy.exc import IntegrityError
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import User
 from app.services.dashboard_service import dashboard_context
 
@@ -20,6 +20,7 @@ def superadmin_required(fn):
 
 
 @bp.post("/register")
+@limiter.limit("5 per minute")
 def register():
     name = request.form.get("full_name", "").strip()
     email = request.form.get("email", "").strip().lower()
@@ -65,6 +66,7 @@ def login_hint():
 
 
 @bp.post("/login")
+@limiter.limit("10 per minute")
 def login():
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")

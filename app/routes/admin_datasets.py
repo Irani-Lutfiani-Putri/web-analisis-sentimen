@@ -8,7 +8,7 @@ manual label can become independent test data.
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import Comment, Dataset
 from app.routes.auth import superadmin_required
 from app.services import comment_query
@@ -75,6 +75,7 @@ def index():
 
 
 @bp.post('/label')
+@limiter.limit("60 per minute")
 @superadmin_required
 def save_label():
     comment = db.session.get(Comment, request.form.get('comment_id', type=int))
@@ -90,6 +91,7 @@ def save_label():
 
 
 @bp.post('/label/bulk')
+@limiter.limit("60 per minute")
 @superadmin_required
 def save_label_bulk():
     dataset = comment_query.owned_dataset(request.form.get('dataset_id', type=int))
@@ -114,6 +116,7 @@ def save_label_bulk():
 
 
 @bp.post('/holdout')
+@limiter.limit("60 per minute")
 @superadmin_required
 def toggle_holdout():
     comment = db.session.get(Comment, request.form.get('comment_id', type=int))

@@ -5,7 +5,7 @@ from uuid import uuid4
 from flask import Blueprint, current_app, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import Dataset, Comment
 from app.services import job_service
 from app.services.dashboard_service import dashboard_context
@@ -50,6 +50,7 @@ def _start_auto_lexicon(app, dataset_id):
 
 
 @bp.route("/datasets/upload", methods=["GET", "POST"])
+@limiter.limit("10 per minute", methods=["POST"])
 @login_required
 def upload():
     if request.method == "GET":

@@ -29,4 +29,6 @@ def load_config():
         "SESSION_COOKIE_HTTPONLY": True,
         "SESSION_COOKIE_SAMESITE": "Lax",
         "SESSION_COOKIE_SECURE": os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "true",
+        "RATELIMIT_ENABLED": os.environ.get("RATELIMIT_ENABLED", "true").lower() == "true",
+        "RATELIMIT_HEADERS_ENABLED": True,
     }

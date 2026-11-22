@@ -1,7 +1,7 @@
 """Training and evaluation tied to the signed-in dataset owner."""
 from flask import Blueprint, current_app, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import Dataset, ModelRun
 from app.services.training_service import TrainingError, train_dataset
 from app.services.holdout_service import summary as holdout_summary
@@ -28,6 +28,7 @@ def index():
 
 
 @bp.post('/classification/train')
+@limiter.limit("10 per minute")
 @login_required
 def train():
     dataset_id = request.form.get('dataset_id', type=int)

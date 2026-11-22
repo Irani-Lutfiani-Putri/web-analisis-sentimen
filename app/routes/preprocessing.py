@@ -2,7 +2,7 @@
 from pathlib import Path
 from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import Comment, Dataset
 from app.routes.auth import superadmin_required
 from app.services.comment_query import (
@@ -75,6 +75,7 @@ def index():
 
 
 @bp.post('/preprocessing/lexicon/run')
+@limiter.limit("10 per minute")
 @login_required
 def run_lexicon():
     dataset = owned_dataset(request.form.get('dataset_id', type=int))
@@ -102,6 +103,7 @@ def run_lexicon():
 
 
 @bp.post('/preprocessing/run')
+@limiter.limit("10 per minute")
 @login_required
 def run_preprocessing():
     dataset = owned_dataset(request.form.get('dataset_id', type=int))
@@ -136,6 +138,7 @@ def label_details():
 
 
 @bp.post('/preprocessing/labels/holdout')
+@limiter.limit("60 per minute")
 @superadmin_required
 def set_holdout_flag():
     """Flag/unflag an independent manual test row (Superadmin only)."""
@@ -161,6 +164,7 @@ def set_holdout_flag():
 
 
 @bp.post('/preprocessing/labels/manual')
+@limiter.limit("60 per minute")
 @superadmin_required
 def manual_label():
     comment = db.session.get(Comment, request.form.get('comment_id', type=int))

@@ -1,7 +1,11 @@
 """Fail closed before any test can mutate a non-test database."""
 import os
+
 import pytest
 from sqlalchemy.engine import make_url
+
+# Rate limit dinonaktifkan di test suite; produksi tetap memakai default true.
+os.environ.setdefault("RATELIMIT_ENABLED", "false")
 
 
 @pytest.fixture(autouse=True)
