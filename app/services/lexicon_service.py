@@ -4,6 +4,8 @@ import re
 import csv
 from pathlib import Path
 
+from sqlalchemy import update
+
 INSET_VERSION = "InSet@9cb9d2971c575d64f4f0ed13c35048095f072a5b"
 
 # SHA-256 of the two InSet files at the commit above; recorded in
@@ -91,15 +93,23 @@ def annotate_dataset(dataset_id, weights, version, conflicting_words=(), progres
                 progress(index, total)
             continue
         result = classify_comment(comment.comment_text, weights, conflicting_words)
-        comment.lexicon_label = result["label"]
-        comment.lexicon_score = result["score"]
-        comment.lexicon_version = version
-        comment.lexicon_processed_at = datetime.now(timezone.utc)
-        comment.review_status = "review" if result["review"] else "accepted"
-        comment.sentiment_label = result["label"]
-        comment.label_source = "review" if result["review"] else "lexicon"
-        processed += 1
-        reviewed += int(result["review"])
+        outcome = db.session.execute(
+            update(Comment)
+            .where(Comment.id == comment.id, Comment.manual_label.is_(None))
+            .values(
+                lexicon_label=result["label"],
+                lexicon_score=result["score"],
+                lexicon_version=version,
+                lexicon_processed_at=datetime.now(timezone.utc),
+                review_status="review" if result["review"] else "accepted",
+                sentiment_label=result["label"],
+                label_source="review" if result["review"] else "lexicon",
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if outcome.rowcount:
+            processed += 1
+            reviewed += int(result["review"])
         if progress and (index % chunk_size == 0 or index == total):
             db.session.commit()
             progress(index, total)

@@ -179,6 +179,25 @@ def test_other_account_cannot_label_foreign_comment(page):
     assert response.status_code == 404
 
 
+def test_other_account_cannot_toggle_foreign_holdout(page):
+    client, token = login(page.app, "b@test.local")
+    response = client.post("/labels/holdout", data={
+        "csrf_token": token, "comment_id": page.review_id, "value": "1",
+    })
+    assert response.status_code == 404
+
+
+def test_other_account_cannot_bulk_label_foreign_dataset(page):
+    client, token = login(page.app, "b@test.local")
+    response = client.post("/labels/label/bulk", data={
+        "csrf_token": token,
+        "dataset_id": page.dataset_id,
+        "label": "Positif",
+        "comment_ids": [str(page.review_id)],
+    })
+    assert response.status_code == 404
+
+
 def test_legacy_admin_datasets_redirects(page):
     client, _ = login(page.app, "a@test.local")
     response = client.get(f"/admin/datasets?dataset_id={page.dataset_id}")

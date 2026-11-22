@@ -4,6 +4,7 @@ import pytest
 
 from app import create_app
 from app.extensions import db
+from app.models import Dataset, User
 
 
 @pytest.fixture
@@ -16,7 +17,8 @@ def client(monkeypatch):
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
     with app.app_context():
         db.create_all()
-        yield app.test_client()
+    yield app.test_client()
+    with app.app_context():
         db.session.remove()
         db.drop_all()
 
@@ -46,3 +48,25 @@ def test_register_redirects_to_login(client):
     })
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/login")
+
+
+def test_classification_guidance_points_to_labels(client):
+    register_and_login(client)
+    with client.application.app_context():
+        user = db.session.execute(db.select(User).filter_by(email="nav@test.local")).scalar_one()
+        db.session.add(Dataset(
+            user_id=user.id,
+            original_filename="guidance.csv",
+            stored_filename="guidance-private.csv",
+            file_path="private",
+            row_count=1,
+            comment_column="isi",
+            status="processed",
+        ))
+        db.session.commit()
+        db.session.remove()
+    response = client.get("/classification")
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Review dan Label" in html
+    assert "halaman Preprocessing" not in html
