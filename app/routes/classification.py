@@ -24,7 +24,10 @@ def _index_context(**extra):
 @bp.get('/classification')
 @login_required
 def index():
-    return render_template('classification/index.html', **_index_context())
+    return render_template(
+        'classification/index.html',
+        **_index_context(selected_dataset_id=request.args.get('dataset_id', type=int)),
+    )
 
 
 @bp.post('/classification/train')

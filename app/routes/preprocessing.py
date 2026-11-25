@@ -1,7 +1,10 @@
 """Lexicon rerun, text preprocessing, and comment listing."""
 from pathlib import Path
 
-from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint, abort, current_app, jsonify, redirect, render_template, request,
+    url_for,
+)
 from flask_login import current_user, login_required
 
 from app.extensions import db, limiter
@@ -11,7 +14,7 @@ from app.services.comment_query import (
     owned_dataset, paginate, pending_review_count,
 )
 from app.services.lexicon_service import INSET_VERSION, LexiconError, annotate_dataset, load_inset
-from app.services.preprocessing_service import process_dataset
+from app.services.preprocessing_service import is_processing, process_dataset, transform_stages
 from app.services import job_service
 
 bp = Blueprint('preprocessing', __name__)
@@ -52,14 +55,21 @@ def _index_context(dataset, q, label, page_arg, **extra):
         comments, total_filtered, page, total_pages = paginate(
             dataset.id, q, label, page_arg, include_review=False
         )
-        comparisons = [
-            {
+        for c in comments:
+            if c.cleaned_text is None:
+                continue
+            stages = transform_stages(c.comment_text, stem=False)
+            comparisons.append({
                 'original': c.comment_text,
-                'cleaned': c.cleaned_text,
+                'cleaning': stages['cleaning'],
+                'case_folding': stages['case_folding'],
+                'tokenizing': stages['tokenizing'],
+                'normalization': stages['normalization'],
+                'stopword': stages['stopword'],
+                # The stored row is the final stemming result shown in the table.
+                'stemming': c.cleaned_text,
                 'label': c.sentiment_label or 'Perlu review',
-            }
-            for c in comments if c.cleaned_text is not None
-        ]
+            })
 
     summary = _labeling_context(dataset)
     safe_comments = [
@@ -122,7 +132,7 @@ def run_lexicon():
                                 progress=job_service.progress_callback(job_id))
 
     job_service.run_in_background(current_app._get_current_object(), job_id, work)
-    return redirect(url_for('preprocessing.labeling', dataset_id=dataset_id, job=job_id))
+    return redirect(url_for('preprocessing.index', dataset_id=dataset_id, job=job_id))
 
 
 @bp.post('/preprocessing/run')
@@ -130,6 +140,10 @@ def run_lexicon():
 @login_required
 def run_preprocessing():
     dataset = owned_dataset(request.form.get('dataset_id', type=int))
+    if is_processing(dataset.id):
+        context = _index_context(dataset, '', 'semua', None)
+        context['error'] = 'Preprocessing dataset ini sedang berjalan. Tunggu sampai selesai.'
+        return render_template('preprocessing/index.html', **context), 409
     job_id = job_service.create_job('preprocessing', dataset.id)
     dataset_id = dataset.id
 

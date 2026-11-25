@@ -4,11 +4,15 @@
 <header class="page-header">
   <p class="kicker">Alur pengolahan</p>
   <h1>Preprocessing</h1>
-  <p>Pelabelan otomatis selesai di halaman terpisah. Teks dibersihkan setelah label tersedia.</p>
+  <p>Tahapan pembersihan dan normalisasi data teks sebelum klasifikasi.</p>
 </header>
 
+{% if error %}
+<p role="alert" class="notice">{{ error }}</p>
+{% endif %}
+
 <section class="panel">
-  <h2>1. Preprocessing teks</h2>
+  <h2>Langkah-langkah Preprocessing</h2>
   <ol class="preprocessing-stages" aria-label="Tahapan preprocessing">
     <li>
       <span class="stage-icon" aria-hidden="true">
@@ -24,6 +28,18 @@
     </li>
     <li>
       <span class="stage-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg>
+      </span>
+      <span>Tokenizing</span>
+    </li>
+    <li>
+      <span class="stage-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false"><path d="M4 7h11m0 0-3-3m3 3-3 3M20 17H9m0 0 3-3m-3 3 3 3"/></svg>
+      </span>
+      <span>Normalisasi Kata</span>
+    </li>
+    <li>
+      <span class="stage-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false"><path d="M4 6h16M7 12h10M10 18h4"/><path d="m17 16 3 3m0-3-3 3"/></svg>
       </span>
       <span>Stopword Removal</span>
@@ -32,15 +48,12 @@
       <span class="stage-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false"><path d="M12 20V9M12 14c-4 0-7-2-7-6 4 0 7 2 7 6Zm0-3c4 0 7-2 7-6-4 0-7 2-7 6Z"/></svg>
       </span>
-      <span>Stemming dengan Sastrawi</span>
+      <span>Stemming</span>
     </li>
   </ol>
 
   {% if dataset %}
-  <p class="result-count">
-    <a href="{{ url_for('preprocessing.labeling', dataset_id=dataset.id) }}">Buka Pelabelan Otomatis</a>
-  </p>
-  <form method="post" action="{{ url_for('preprocessing.run_preprocessing') }}">
+  <form class="preprocessing-form" method="post" action="{{ url_for('preprocessing.run_preprocessing') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="dataset_id" value="{{ dataset.id }}">
     <button type="submit" class="button" data-progress="Preprocessing teks">Jalankan Preprocessing</button>
@@ -48,108 +61,44 @@
   {% endif %}
 
   {% if comparisons %}
-  <table>
-    <caption>Perbandingan komentar asli dan hasil preprocessing</caption>
-    <thead>
-      <tr>
-        <th>Komentar asli</th>
-        <th>Hasil preprocessing</th>
-        <th>Label</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in comparisons %}
-      <tr>
-        <td>{{ item.original }}</td>
-        <td>{{ item.cleaned or 'Kosong setelah preprocessing' }}</td>
-        <td>{{ item.label }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p>Belum ada hasil teks untuk dibandingkan.</p>
+  <div class="preprocessing-comparison-wrap">
+    <table class="preprocessing-comparison">
+      <caption>Perbandingan komentar asli dan hasil setiap tahap preprocessing</caption>
+      <thead>
+        <tr>
+          <th scope="col">Komentar asli</th>
+          <th scope="col">Cleaning</th>
+          <th scope="col">Case Folding</th>
+          <th scope="col">Tokenizing</th>
+          <th scope="col">Normalisasi Kata</th>
+          <th scope="col">Stopword Removal</th>
+          <th scope="col">Stemming</th>
+          <th scope="col">Label</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in comparisons %}
+        <tr>
+          <td>{{ item.original }}</td>
+          <td>{{ item.cleaning or 'Kosong' }}</td>
+          <td>{{ item.case_folding or 'Kosong' }}</td>
+          <td>{{ item.tokenizing or 'Kosong' }}</td>
+          <td>{{ item.normalization or 'Kosong' }}</td>
+          <td>{{ item.stopword or 'Kosong' }}</td>
+          <td>{{ item.stemming or 'Kosong setelah preprocessing' }}</td>
+          <td>{{ item.label }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if dataset.status == 'processed' %}
+  <div class="preprocessing-next">
+    <a class="page-link" href="{{ url_for('classification.index', dataset_id=dataset.id) }}">Lanjut ke Klasifikasi <span aria-hidden="true">→</span></a>
+  </div>
+  {% endif %}
   {% endif %}
 </section>
-
-<section class="panel">
-  <h2>2. Komentar dan label akhir</h2>
-
-  {% if dataset %}
-  <p>
-    Dataset aktif: {{ dataset.original_filename }}. {{ total_comments }} komentar.
-    {% if label_counts %}
-    Positif {{ label_counts.get('Positif', 0) }}, Netral {{ label_counts.get('Netral', 0) }},
-    Negatif {{ label_counts.get('Negatif', 0) }}.
-    {% else %}
-    Belum ada label akhir.
-    {% endif %}
-  </p>
-
-  <p class="result-count">
-    <a href="{{ labels_url }}">Buka Review dan Label{% if pending_review %} ({{ pending_review }}){% endif %}</a>
-  </p>
-
-  <form class="filters" method="get" action="{{ url_for('preprocessing.index') }}" role="search">
-    <input type="hidden" name="dataset_id" value="{{ dataset.id }}">
-    <label for="q">Cari komentar</label>
-    <input id="q" name="q" type="search" value="{{ q }}" placeholder="Kata kunci komentar">
-    <label for="label">Filter label</label>
-    <select id="label" name="label">
-      {% for option in filter_options %}
-      <option value="{{ option.value }}" {{ 'selected' if label == option.value }}>{{ option.text }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit" class="button">Terapkan</button>
-    {% if q or label != 'semua' %}
-    <a href="{{ url_for('preprocessing.index', dataset_id=dataset.id) }}">Reset</a>
-    {% endif %}
-  </form>
-
-  <p class="result-count">
-    {{ total_filtered }} komentar cocok{% if q %} untuk "{{ q }}"{% endif %}.
-    Menampilkan {{ comments|length }} baris, halaman {{ page }} dari {{ total_pages }}.
-  </p>
-
-  {% if comments %}
-  <table>
-    <caption>Komentar dan label akhir</caption>
-    <thead>
-      <tr>
-        <th>Komentar</th>
-        <th>Label akhir</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in comments %}
-      <tr>
-        <td>{{ item.text }}</td>
-        <td>{{ item.label }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p>Tidak ada komentar yang cocok dengan pencarian atau filter ini.</p>
-  {% endif %}
-
-  {% if total_pages > 1 %}
-  <nav class="pagination" aria-label="Navigasi halaman">
-    <a class="page-link" href="{{ url_for('preprocessing.index', dataset_id=dataset.id, q=q or None, label=label, page=page-1) if page > 1 else '#' }}" {{ 'aria-disabled=true' if page <= 1 }}>Sebelumnya</a>
-    <span>Halaman {{ page }} / {{ total_pages }}</span>
-    <a class="page-link" href="{{ url_for('preprocessing.index', dataset_id=dataset.id, q=q or None, label=label, page=page+1) if page < total_pages else '#' }}" {{ 'aria-disabled=true' if page >= total_pages }}>Berikutnya</a>
-  </nav>
-  {% endif %}
-  {% else %}
-  <p role="status">Belum ada dataset. Import CSV terlebih dahulu.</p>
-  {% endif %}
-</section>
-
-{% if dataset and dataset.status == 'processed' %}
-<a class="button" href="{{ url_for('classification.index') }}">Lanjut ke Klasifikasi</a>
-{% else %}
-<p>Lanjut ke Klasifikasi tersedia setelah pelabelan dan preprocessing selesai.</p>
-{% endif %}
 
 {% if job_id %}
 <div data-job-watch="{{ job_id }}"></div>

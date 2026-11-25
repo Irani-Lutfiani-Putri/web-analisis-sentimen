@@ -40,35 +40,36 @@ def login(app, token='page-nonce'):
     return client, csrf
 
 
-def test_first_page_shows_10_of_24(paged):
+def test_first_page_shows_10_of_30(paged):
     app, dataset_id = paged
     client, _ = login(app)
-    html = client.get(f'/preprocessing?dataset_id={dataset_id}').data
-    assert b'1 / 3' in html or b'Halaman 1' in html
-    assert b'24 komentar' in html
+    html = client.get(f'/labels?dataset_id={dataset_id}&label=semua').data
+    assert b'Halaman 1 / 3' in html
+    assert b'30 komentar cocok' in html
+    assert b'nomor 0' in html
 
 
-def test_second_page_has_remaining_rows(paged):
+def test_third_page_has_remaining_rows(paged):
     app, dataset_id = paged
     client, _ = login(app)
-    page2 = client.get(f'/preprocessing?dataset_id={dataset_id}&page=3')
-    assert page2.status_code == 200
-    assert b'nomor 29' in page2.data
-    assert b'nomor 0' not in page2.data
+    page3 = client.get(f'/labels?dataset_id={dataset_id}&label=semua&page=3')
+    assert page3.status_code == 200
+    assert b'nomor 29' in page3.data
+    assert b'nomor 0' not in page3.data
 
 
 def test_search_filters_rows(paged):
     app, dataset_id = paged
     client, _ = login(app)
-    html = client.get(f'/preprocessing?dataset_id={dataset_id}&q=merusak').data
+    html = client.get(f'/labels?dataset_id={dataset_id}&label=semua&q=merusak').data
     assert b'merusak' in html
     assert b'memberi manfaat' not in html
 
 
-def test_review_filter_falls_back_to_all_labelled_rows(paged):
+def test_review_filter_shows_review_rows(paged):
     app, dataset_id = paged
     client, _ = login(app)
-    html = client.get(f'/preprocessing?dataset_id={dataset_id}&label=review').data
-    assert b'24 komentar' in html
-    assert b'nomor 0</td>' not in html
-    assert b'nomor 1</td>' in html
+    html = client.get(f'/labels?dataset_id={dataset_id}&label=review').data
+    assert b'6 komentar cocok' in html
+    assert b'nomor 0</td>' in html
+    assert b'nomor 1</td>' not in html

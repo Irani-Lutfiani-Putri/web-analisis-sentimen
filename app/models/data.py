@@ -30,6 +30,7 @@ class Comment(db.Model):
     row_number = db.Column(db.Integer, nullable=False)
     comment_text = db.Column(db.Text, nullable=False)
     cleaned_text = db.Column(db.Text)
+    preprocessing_version = db.Column(db.String(50))
     manual_label = db.Column(db.Enum("Positif", "Negatif", "Netral"))
     is_independent_holdout = db.Column(db.Boolean, nullable=False, default=False)
     lexicon_label = db.Column(db.Enum("Positif", "Negatif", "Netral"))

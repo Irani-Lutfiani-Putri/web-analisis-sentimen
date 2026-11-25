@@ -74,28 +74,54 @@ def login(app, email):
     return client
 
 
-def test_preprocessing_hides_review_and_unlabeled_rows(dataset):
+def test_preprocessing_shows_stages_without_comment_table(dataset):
     client = login(dataset.app, "visibility@test.local")
     html = client.get(f"/preprocessing?dataset_id={dataset.id}").data.decode()
-    assert "tambang bagus" in html
-    assert "tambang merusak" in html
-    assert "tambang biasa" in html
+    assert "Cleaning" in html
+    assert "Case Folding" in html
+    assert "Tokenizing" in html
+    assert "Stopword Removal" in html
+    assert "Stemming" in html
+    assert "Jalankan Preprocessing" in html
+    assert "Download" not in html
+    assert "Lanjut ke Klasifikasi" not in html
+    assert "tambang bagus" not in html
     assert "tidak buruk" not in html
     assert "entah apa" not in html
 
 
-def test_preprocessing_pending_count_includes_review_and_unlabeled(dataset):
+def test_preprocessing_comparison_shows_each_stage(dataset):
+    with dataset.app.app_context():
+        comment = db.session.execute(
+            db.select(Comment).filter_by(dataset_id=dataset.id, comment_text="tambang bagus")
+        ).scalar_one()
+        comment.cleaned_text = "tambang bagus"
+        db.session.get(Dataset, dataset.id).status = "processed"
+        db.session.commit()
     client = login(dataset.app, "visibility@test.local")
     html = client.get(f"/preprocessing?dataset_id={dataset.id}").data.decode()
-    assert "Buka Review dan Label (2)" in html
+    for header in (
+        "Komentar asli", "Cleaning", "Case Folding", "Tokenizing",
+        "Normalisasi Kata", "Stopword Removal", "Stemming", "Label",
+    ):
+        assert header in html
+    assert "tambang | bagus" in html
+    assert "Download" not in html
+    assert "Lanjut ke Klasifikasi" in html
+    assert f"/classification?dataset_id={dataset.id}" in html
 
 
-def test_preprocessing_links_to_labeling_page(dataset):
+def test_preprocessing_hides_review_and_labeling_links(dataset):
     client = login(dataset.app, "visibility@test.local")
     html = client.get(f"/preprocessing?dataset_id={dataset.id}").data.decode()
-    assert "Buka Pelabelan Otomatis" in html
+    assert "Buka Review dan Label" not in html
+    assert "Buka Pelabelan Otomatis" not in html
     assert "Hitung Ulang Label Otomatis" not in html
-    assert "Buka Review dan Label (2)" in html
+
+
+def test_preprocessing_hides_label_metadata(dataset):
+    client = login(dataset.app, "visibility@test.local")
+    html = client.get(f"/preprocessing?dataset_id={dataset.id}").data.decode()
     assert "<th>Sumber</th>" not in html
     assert "<th>Skor</th>" not in html
     assert "/preprocessing/labels/manual" not in html
@@ -110,29 +136,16 @@ def test_labeling_page_shows_counts_and_rerun(dataset):
     assert "Kembali ke Preprocessing" in html
 
 
-def test_preprocessing_keeps_labels_link_when_nothing_is_pending(dataset):
-    with dataset.app.app_context():
-        row = Dataset(
-            user_id=db.session.execute(db.select(User).filter_by(email="visibility@test.local")).scalar_one().id,
-            original_filename="clean.csv",
-            stored_filename="clean-private.csv",
-            file_path="private",
-            row_count=1,
-            comment_column="isi",
-            status="validated",
-        )
-        db.session.add(row)
-        db.session.flush()
-        db.session.add(Comment(
-            dataset_id=row.id,
-            row_number=2,
-            comment_text="tambang bagus",
-            sentiment_label="Positif",
-            label_source="lexicon",
-            review_status="accepted",
-        ))
-        db.session.commit()
-        clean_id = row.id
+def test_preprocessing_never_shows_labels_link(dataset):
     client = login(dataset.app, "visibility@test.local")
-    html = client.get(f"/preprocessing?dataset_id={clean_id}").data.decode()
-    assert "Buka Review dan Label" in html
+    html = client.get(f"/preprocessing?dataset_id={dataset.id}").data.decode()
+    assert "Buka Review dan Label" not in html
+
+
+def test_preprocessing_rejects_duplicate_run(dataset, monkeypatch):
+    dataset.app.config["WTF_CSRF_ENABLED"] = False
+    client = login(dataset.app, "visibility@test.local")
+    monkeypatch.setattr("app.routes.preprocessing.is_processing", lambda _: True)
+    response = client.post("/preprocessing/run", data={"dataset_id": dataset.id})
+    assert response.status_code == 409
+    assert b"sedang berjalan" in response.data
