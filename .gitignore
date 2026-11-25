@@ -7,3 +7,7 @@ instance/
 storage/
 .hermes/
 *.joblib
+
+# Local archive and draft plan
+web-analisis-sentimen.rar
+docs/PLAN-UIUX-GOLD-SILVER.md
