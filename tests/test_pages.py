@@ -53,7 +53,7 @@ def test_public_pages_render_with_real_links(app_client):
 
 
 def test_private_pages_redirect_anonymous(app_client):
-    for path in ("/dashboard", "/datasets/upload", "/preprocessing", "/preprocessing/labeling", "/classification", "/testing"):
+    for path in ("/dashboard", "/datasets/upload", "/preprocessing", "/preprocessing/labeling", "/classification", "/results", "/testing"):
         response = app_client.get(path)
         assert response.status_code == 302
         assert response.location.endswith("/login")
@@ -63,7 +63,7 @@ def test_private_pages_render_after_login_and_no_fake_numbers(app_client):
     csrf = token_for(app_client)
     assert app_client.post("/register", data={"full_name":"Peneliti", "email":"pages@example.test", "password":"rahasia-kuat-123", "csrf_token":csrf}).status_code == 302
     assert app_client.post("/login", data={"email":"pages@example.test", "password":"rahasia-kuat-123", "csrf_token":csrf}).status_code == 302
-    for path in ("/dashboard", "/datasets/upload", "/preprocessing", "/preprocessing/labeling", "/classification", "/testing"):
+    for path in ("/dashboard", "/datasets/upload", "/preprocessing", "/preprocessing/labeling", "/classification", "/results", "/testing"):
         response = app_client.get(path)
         assert response.status_code == 200
         assert b"Logout" in response.data

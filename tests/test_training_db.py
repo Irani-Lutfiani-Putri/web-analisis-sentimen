@@ -1,10 +1,12 @@
 import os
+from io import BytesIO
+
 import pytest
-from pathlib import Path
+
 from app import create_app
 from app.extensions import db
-from app.models import User, Dataset, Comment, ModelRun
-from app.services.training_service import train_dataset, TrainingError, load_run
+from app.models import Comment, Dataset, ModelRun, Prediction, User
+from app.services.preprocessing_service import PREPROCESSING_VERSION
 
 
 @pytest.fixture
@@ -24,58 +26,78 @@ def records(monkeypatch, tmp_path):
         try:
             owner = User(full_name='Peneliti', email='train@test.local')
             owner.set_password('secure-password-123')
-            db.session.add(owner); db.session.flush()
-            dataset = Dataset(user_id=owner.id, original_filename='train.csv', stored_filename='train-private.csv', file_path='private', row_count=24, comment_column='text', status='processed')
-            db.session.add(dataset); db.session.flush()
-            suffixes = ('satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan')
-            for group, label in enumerate(('Negatif','Netral','Positif')):
-                for n, suffix in enumerate(suffixes):
-                    db.session.add(Comment(dataset_id=dataset.id, row_number=group*8+n+2,
-                        comment_text=f'{label} tambang {suffix}', cleaned_text=f'{label.lower()} tambang {suffix}',
-                        manual_label=label if n==0 else None, is_independent_holdout=(n==0),
-                        sentiment_label=label, label_source='manual' if n==0 else 'lexicon'))
+            db.session.add(owner)
+            db.session.flush()
+            dataset = Dataset(
+                user_id=owner.id, original_filename='train.csv',
+                stored_filename='train-private.csv', file_path='private',
+                row_count=30, comment_column='text', status='processed',
+            )
+            db.session.add(dataset)
+            db.session.flush()
+            suffixes = ('satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh')
+            row_number = 2
+            for label in ('Negatif', 'Netral', 'Positif'):
+                for suffix in suffixes:
+                    db.session.add(Comment(
+                        dataset_id=dataset.id, row_number=row_number,
+                        comment_text=f'{label} tambang {suffix}',
+                        cleaned_text=f'{label.lower()} tambang {suffix}',
+                        preprocessing_version=PREPROCESSING_VERSION,
+                        sentiment_label=label, label_source='lexicon',
+                    ))
+                    row_number += 1
             db.session.commit()
             yield app, owner.id, dataset.id
         finally:
-            db.session.remove(); db.drop_all()
+            db.session.remove()
+            db.drop_all()
 
 
-def test_train_dataset_saves_real_metrics_and_reloadable_pair(records):
-    app, owner_id, dataset_id = records
-    with app.app_context():
-        run = train_dataset(dataset_id, owner_id, app.config['MODEL_FOLDER'])
-        assert run.status == 'completed'
-        assert run.dataset_id == dataset_id
-        assert run.confusion_matrix is not None
-        assert len(run.confusion_matrix) == 3
-        assert all(len(row)==3 for row in run.confusion_matrix)
-        model, vectorizer = load_run(run, app.config['MODEL_FOLDER'])
-        assert model.predict(vectorizer.transform(['tambang positif'])).shape == (1,)
-        assert Path(run.model_path).is_file() and Path(run.vectorizer_path).is_file()
-        assert db.session.execute(db.select(ModelRun)).scalar_one().id == run.id
+def login(app):
+    app.config['WTF_CSRF_ENABLED'] = False
+    client = app.test_client()
+    response = client.post('/login', data={
+        'email': 'train@test.local', 'password': 'secure-password-123',
+    })
+    assert response.status_code == 302
+    return client
 
 
 def test_training_error_renders_dataset_field(records):
     app, owner_id, dataset_id = records
-    app.config['WTF_CSRF_ENABLED'] = False
-    client = app.test_client()
-    client.post('/login', data={'email': 'train@test.local', 'password': 'secure-password-123'})
+    client = login(app)
     response = client.post('/classification/train', data={'dataset_id': ''})
     assert response.status_code == 400
     assert b'id="dataset_id-error"' in response.data
     assert b'Klasifikasi SVM' in response.data
 
 
-def test_training_and_inference_routes_with_mysql(records):
-    from io import BytesIO
+def test_staged_training_and_inference_routes_with_mysql(records):
     app, owner_id, dataset_id = records
-    app.config['WTF_CSRF_ENABLED'] = False
-    client = app.test_client()
-    login = client.post('/login', data={'email': 'train@test.local', 'password': 'secure-password-123'})
-    assert login.status_code == 302
+    client = login(app)
     assert client.post('/testing/single', data={'comment': 'tambang positif'}).status_code == 400
-    trained = client.post('/classification/train', data={'dataset_id': dataset_id})
-    assert trained.status_code == 302
+
+    assert client.post('/classification/split', data={
+        'dataset_id': dataset_id, 'split_ratio': '70:30',
+    }).status_code == 302
+    assert client.post('/classification/tfidf', data={'dataset_id': dataset_id}).status_code == 302
+    assert client.post('/classification/train', data={'dataset_id': dataset_id}).status_code == 302
+    assert client.post('/classification/evaluate', data={'dataset_id': dataset_id}).status_code == 302
+
+    page = client.get(f'/classification?dataset_id={dataset_id}')
+    assert page.status_code == 200
+    assert b'Confusion matrix' in page.data
+    assert b'Classification Report' in page.data
+    assert b'Accuracy' in page.data
+    assert b'Lihat Hasil Klasifikasi' in page.data
+    assert f'/results?dataset_id={dataset_id}'.encode() in page.data
+
+    initial_testing = client.get('/testing')
+    assert b'Cek Data Testing (Upload CSV)' in initial_testing.data
+    assert b'Belum ada data diupload.' in initial_testing.data
+    assert b'Total Data' in initial_testing.data
+
     empty_single = client.post('/testing/single', data={'comment': ''})
     assert empty_single.status_code == 400
     assert b'id="comment-error"' in empty_single.data
@@ -88,41 +110,33 @@ def test_training_and_inference_routes_with_mysql(records):
     }, content_type='multipart/form-data')
     assert invalid_column.status_code == 400
     assert b'id="comment_column-error"' in invalid_column.data
-    page = client.get('/classification')
-    assert page.status_code == 200
-    assert b'Confusion matrix' in page.data
+
     single = client.post('/testing/single', data={'comment': 'tambang positif'})
     assert single.status_code == 200
-    assert b'Prediksi:' in single.data
+    assert b'Hasil Prediksi:' in single.data
+    assert b'Kalimat diuji:' in single.data
+    assert b'tambang positif' in single.data
+    assert any(
+        f'testing-prediction-{label}'.encode() in single.data
+        for label in ('positif', 'negatif', 'netral')
+    )
+    batch_rows = ['isi'] + [f'tambang memberi manfaat {index}' for index in range(12)] + ['" "']
     batch = client.post('/testing/batch', data={
         'comment_column': 'isi',
-        'file': (BytesIO(b'isi\ntambang positif\n" "\ntambang negatif\n'), 'uji.csv'),
+        'file': (BytesIO(('\n'.join(batch_rows) + '\n').encode()), 'uji.csv'),
     }, content_type='multipart/form-data')
     assert batch.status_code == 200
-    assert b'2 komentar valid; 1 ditolak' in batch.data
+    assert b'12 komentar valid; 1 ditolak' in batch.data
+    for index in range(12):
+        assert f'tambang memberi manfaat {index}'.encode() in batch.data
+    assert b'Halaman' not in batch.data
+
     with app.app_context():
-        from app.models import Prediction
-        assert db.session.scalar(db.select(db.func.count(Prediction.id))) == 3
-
-
-def test_holdout_ignores_conflicting_lexicon_score(records):
-    app, owner_id, dataset_id = records
-    with app.app_context():
-        comments = db.session.execute(db.select(Comment).filter_by(dataset_id=dataset_id).order_by(Comment.id)).scalars().all()
-        manual = [c for c in comments if c.manual_label]
-        manual[0].lexicon_label = 'Positif' if manual[0].manual_label != 'Positif' else 'Negatif'
-        manual[0].lexicon_score = -5
-        db.session.commit()
-        run = train_dataset(dataset_id, owner_id, app.config['MODEL_FOLDER'])
-        assert run.status == 'completed'
-
-
-def test_train_rejects_no_independent_manual_holdout(records):
-    app, owner_id, dataset_id = records
-    with app.app_context():
-        for comment in db.session.execute(db.select(Comment).filter_by(dataset_id=dataset_id)).scalars():
-            comment.manual_label = None
-        db.session.commit()
-        with pytest.raises(TrainingError, match='manual'):
-            train_dataset(dataset_id, owner_id, app.config['MODEL_FOLDER'])
-        assert db.session.execute(db.select(ModelRun)).first() is None
+        assert db.session.scalar(db.select(db.func.count(ModelRun.id))) == 1
+        run = db.session.execute(db.select(ModelRun)).scalar_one()
+        assert db.session.scalar(
+            db.select(db.func.count(Prediction.id)).filter_by(source='testing')
+        ) == 13
+        assert db.session.scalar(
+            db.select(db.func.count(Prediction.id)).filter_by(source='evaluation')
+        ) == run.test_count

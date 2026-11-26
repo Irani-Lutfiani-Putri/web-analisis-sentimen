@@ -13,6 +13,7 @@ from app.routes.datasets import bp as datasets_bp
 from app.routes.preprocessing import bp as preprocessing_bp
 from app.routes.labels import bp as labels_bp
 from app.routes.classification import bp as classification_bp
+from app.routes.results import bp as results_bp
 from app.routes.testing import bp as testing_bp
 from app import models  # register tables with SQLAlchemy metadata
 
@@ -45,6 +46,7 @@ def create_app():
     app.register_blueprint(preprocessing_bp)
     app.register_blueprint(labels_bp)
     app.register_blueprint(classification_bp)
+    app.register_blueprint(results_bp)
     app.register_blueprint(testing_bp)
 
     @app.get("/health/db")

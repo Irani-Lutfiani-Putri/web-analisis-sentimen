@@ -34,6 +34,15 @@ def test_batch_counts_valid_and_rejected_rows():
     assert sum(result['counts'].values()) == 2
 
 
+def test_batch_accepts_semicolon_delimiter():
+    model, vectorizer = trained_pair()
+    csv = io.BytesIO('isi;lain\ntambang memberi manfaat;x\n'.encode())
+    result = predict_batch(csv, 'isi', model, vectorizer)
+    assert len(result['rows']) == 1
+    assert result['rows'][0]['text'] == 'tambang memberi manfaat'
+    assert result['rows'][0]['predicted_label'] in {'Negatif', 'Netral', 'Positif'}
+
+
 def test_batch_rejects_invalid_encoding_and_column():
     model, vectorizer = trained_pair()
     with pytest.raises(PredictionError, match='UTF-8') as encoding_error:

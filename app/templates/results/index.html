@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}Hasil Klasifikasi{% endblock %}
+{% block content %}
+<header class="page-header classification-page-header">
+  <div>
+    <p class="kicker">Hasil Klasifikasi</p>
+    <h1>Hasil Klasifikasi SVM</h1>
+    <p>Ringkasan evaluasi dan prediksi model SVM pada data testing yang tersimpan.</p>
+  </div>
+  {% if run %}
+  <div class="classification-summary" aria-label="Identitas eksperimen">
+    <span class="classification-chip">
+      <span>Dataset</span>
+      <strong title="{{ selected_dataset.original_filename if selected_dataset else run.dataset_id }}">{{ selected_dataset.original_filename if selected_dataset else run.dataset_id }}</strong>
+    </span>
+    <span class="classification-chip"><span>Eksperimen</span><strong>#{{ run.id }}</strong></span>
+    <span class="classification-chip"><span>Rasio</span><strong>{{ run.split_ratio }}</strong></span>
+    <span class="classification-chip"><span>Preprocessing</span><strong>{{ preprocessing_version }}</strong></span>
+  </div>
+  {% endif %}
+</header>
+
+{% if not run %}
+<section class="panel">
+  <h2>Belum ada hasil klasifikasi</h2>
+  {% if selected_dataset %}
+  <p>Dataset {{ selected_dataset.original_filename }} belum memiliki eksperimen yang selesai dievaluasi.</p>
+  {% else %}
+  <p>Belum ada eksperimen SVM yang selesai dievaluasi.</p>
+  {% endif %}
+  <p>Jalankan Split Data, TF-IDF, Training SVM, dan Evaluasi Model di halaman Klasifikasi.</p>
+  <a class="button" href="{{ url_for('classification.index', dataset_id=selected_dataset.id) if selected_dataset else url_for('classification.index') }}">Buka Klasifikasi</a>
+</section>
+{% else %}
+{% if version_stale %}
+<p class="notice" role="alert">Hasil ini dibuat dengan preprocessing {{ preprocessing_version }}, sedangkan versi saat ini {{ current_version }}. Jalankan preprocessing dan klasifikasi ulang untuk hasil terbaru.</p>
+{% endif %}
+{% if test_count_mismatch %}
+<p class="notice" role="alert">Rincian prediksi tersimpan {{ total_predictions }} baris, sedangkan jumlah data testing {{ test_count }}. Sebagian rincian prediksi belum tersedia.</p>
+{% endif %}
+{% if distribution_mismatch %}
+<p class="notice" role="alert">Jumlah distribusi prediksi tidak sama dengan jumlah data testing.</p>
+{% endif %}
+
+<section class="panel">
+  <h2>Ringkasan Kinerja Model</h2>
+  <div class="classification-metrics" aria-label="Metrik evaluasi model">
+    <div><span>Accuracy</span><strong>{{ '%.4f'|format(run.accuracy|float) }}</strong></div>
+    <div><span>Precision</span><strong>{{ '%.4f'|format(run.precision_macro|float) }}</strong></div>
+    <div><span>Recall</span><strong>{{ '%.4f'|format(run.recall_macro|float) }}</strong></div>
+    <div><span>F1-Score</span><strong>{{ '%.4f'|format(run.f1_macro|float) }}</strong></div>
+  </div>
+  <p class="result-count">Eksperimen {{ run.experiment_name }} nomor {{ run.id }}{% if run.evaluated_at %}, dievaluasi {{ run.evaluated_at.strftime('%d-%m-%Y %H:%M') }}{% endif %}.</p>
+</section>
+
+<section class="panel">
+  <h2>Informasi Dataset</h2>
+  <dl class="model-stats results-info">
+    <div><dt>Nama dataset</dt><dd>{{ selected_dataset.original_filename if selected_dataset else run.dataset_id }}</dd></div>
+    <div><dt>Data berlabel digunakan</dt><dd>{{ used_rows }}</dd></div>
+    <div><dt>Rasio split</dt><dd>{{ run.split_ratio }}</dd></div>
+    <div><dt>Data training</dt><dd>{{ run.train_size }}</dd></div>
+    <div><dt>Data testing</dt><dd>{{ run.test_size }}</dd></div>
+    <div><dt>Positif</dt><dd>{{ overall_distribution['Positif'] }}</dd></div>
+    <div><dt>Netral</dt><dd>{{ overall_distribution['Netral'] }}</dd></div>
+    <div><dt>Negatif</dt><dd>{{ overall_distribution['Negatif'] }}</dd></div>
+    <div><dt>Preprocessing</dt><dd>{{ preprocessing_version }}</dd></div>
+    <div><dt>Eksperimen</dt><dd>#{{ run.id }} {{ run.experiment_name }}</dd></div>
+    <div><dt>SVM</dt><dd>{% if run.svm_config %}{{ run.svm_config['kernel'] }} / C={{ run.svm_config['C'] }}{% else %}-{% endif %}</dd></div>
+    <div><dt>Vocabulary TF-IDF</dt><dd>{{ run.tfidf_vocabulary_size }}</dd></div>
+  </dl>
+  {% if duplicates %}
+  <p class="classification-hint">Dari {{ raw_rows }} baris berlabel, {{ duplicates }} duplikat digabung{% if conflicts %}, {{ conflicts }} konflik label diabaikan{% endif %}.</p>
+  {% endif %}
+</section>
+
+<div class="results-grid">
+  <section class="panel">
+    <h2>Distribusi Hasil Klasifikasi</h2>
+    <p>Prediksi SVM pada {{ test_count }} data testing.</p>
+    {% if total_predictions %}
+    <div class="results-chart" data-prediction-values="{{ prediction_distribution['Positif'] }},{{ prediction_distribution['Netral'] }},{{ prediction_distribution['Negatif'] }}">
+      <canvas id="prediction-chart" role="img" aria-label="Grafik distribusi prediksi SVM pada data testing"></canvas>
+    </div>
+    {% endif %}
+    <ul class="label-distribution" aria-label="Jumlah prediksi per kelas">
+      {% for label in display_classes %}
+      <li>{{ label }}: {{ prediction_distribution[label] }} prediksi</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>Confusion Matrix</h2>
+    <table>
+      <caption>Confusion matrix: baris aktual, kolom prediksi</caption>
+      <thead>
+        <tr>
+          <th scope="col">Aktual / Prediksi</th>
+          {% for label in display_classes %}<th scope="col">{{ label }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for label in display_classes %}
+        {% set row = matrix[loop.index0] %}
+        <tr>
+          <th>{{ label }}</th>
+          {% for value in row %}<td>{{ value }}</td>{% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if missing_result_classes %}
+    <p class="classification-hint">Kelas {{ missing_result_classes|join(', ') }} tidak memiliki data pada eksperimen ini; baris dan kolomnya bernilai 0.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Classification Report</h2>
+  <table>
+    <caption>Metrik per kelas pada data testing</caption>
+    <thead>
+      <tr>
+        <th scope="col">Kelas</th>
+        <th scope="col">Precision</th>
+        <th scope="col">Recall</th>
+        <th scope="col">F1-Score</th>
+        <th scope="col">Support</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in report_rows %}
+      <tr>
+        <th>{{ row.label }}</th>
+        {% if row.available %}
+        <td>{{ '%.4f'|format(row.precision) }}</td>
+        <td>{{ '%.4f'|format(row.recall) }}</td>
+        <td>{{ '%.4f'|format(row.f1) }}</td>
+        <td>{{ row.support }}</td>
+        {% else %}
+        <td>Tidak ada data</td>
+        <td>Tidak ada data</td>
+        <td>Tidak ada data</td>
+        <td>0</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Tabel Hasil Klasifikasi</h2>
+  <p>Menampilkan {{ total_predictions }} prediksi pada data testing. Halaman {{ page }} dari {{ total_pages }}.</p>
+  {% if predictions %}
+  <div class="results-table-wrap">
+    <table class="results-table">
+      <caption>Perbandingan label aktual dan prediksi SVM pada data testing</caption>
+      <thead>
+        <tr>
+          <th scope="col">Nomor</th>
+          <th scope="col">Komentar asli</th>
+          <th scope="col">Komentar preprocessing</th>
+          <th scope="col">Label aktual</th>
+          <th scope="col">Prediksi SVM</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in predictions %}
+        <tr>
+          <td>{{ item.number }}</td>
+          <td>{{ item.original }}</td>
+          <td>{{ item.cleaned or 'Kosong setelah preprocessing' }}</td>
+          <td>{{ item.actual }}</td>
+          <td>{{ item.predicted }}</td>
+          <td><span class="prediction-status {{ 'correct' if item.correct else 'wrong' }}">{{ 'Benar' if item.correct else 'Salah' }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    <a class="page-link" href="{{ url_for('results.index', dataset_id=selected_dataset.id if selected_dataset else run.dataset_id, page=page-1) }}" aria-disabled="{{ 'true' if page <= 1 else 'false' }}">Sebelumnya</a>
+    <span>Halaman {{ page }} dari {{ total_pages }}</span>
+    <a class="page-link" href="{{ url_for('results.index', dataset_id=selected_dataset.id if selected_dataset else run.dataset_id, page=page+1) }}" aria-disabled="{{ 'true' if page >= total_pages else 'false' }}">Berikutnya</a>
+  </div>
+  {% else %}
+  <p role="status">Rincian prediksi data testing belum tersedia untuk eksperimen ini.</p>
+  {% endif %}
+</section>
+
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/results.js') }}"></script>
+{% endif %}
+{% endblock %}

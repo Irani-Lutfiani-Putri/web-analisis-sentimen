@@ -26,7 +26,12 @@ def predict_batch(stream, comment_column, model, vectorizer):
     except UnicodeDecodeError as exc:
         raise PredictionError('CSV harus UTF-8', field='file') from exc
     try:
-        reader = csv.DictReader(io.StringIO(decoded, newline=''), strict=True)
+        sample = decoded[:4096]
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=',;\t|')
+        except csv.Error:
+            dialect = csv.excel
+        reader = csv.DictReader(io.StringIO(decoded, newline=''), dialect=dialect, strict=True)
         if not reader.fieldnames or not comment_column or comment_column not in reader.fieldnames:
             raise PredictionError('Pilih kolom komentar yang tersedia', field='comment_column')
         rows, rejected = [], 0

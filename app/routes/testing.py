@@ -10,7 +10,12 @@ bp = Blueprint('testing', __name__)
 
 
 def latest_run():
-    return db.session.execute(db.select(ModelRun).filter_by(user_id=current_user.id, status='completed').order_by(ModelRun.id.desc())).scalars().first()
+    return db.session.execute(
+        db.select(ModelRun).filter(
+            ModelRun.user_id == current_user.id,
+            ModelRun.status.in_(('trained', 'completed')),
+        ).order_by(ModelRun.id.desc())
+    ).scalars().first()
 
 
 @bp.get('/testing')
@@ -38,7 +43,7 @@ def single():
         ), 400
     db.session.add(Prediction(user_id=current_user.id, model_run_id=run.id, input_text=text, predicted_label=label))
     db.session.commit()
-    return render_template('testing/index.html', run=run, single_label=label)
+    return render_template('testing/index.html', run=run, single_label=label, single_text=text)
 
 
 @bp.post('/testing/batch')
@@ -74,13 +79,5 @@ def batch():
         db.session.add(Prediction(user_id=current_user.id, model_run_id=run.id,
                                   input_text=row['text'], predicted_label=row['predicted_label'], row_number=row['row_number']))
     db.session.commit()
-    page = max(1, request.args.get('page', type=int) or 1)
-    page_size = 10
-    total_rows = len(result['rows'])
-    total_pages = max(1, -(-total_rows // page_size))
-    page = min(page, total_pages)
-    start = (page - 1) * page_size
-    paged = {**result, 'rows': result['rows'][start:start + page_size]}
     return render_template('testing/index.html', run=run, batch_result=result,
-                           batch_rows=paged['rows'], batch_page=page, batch_total_pages=total_pages,
-                           batch_total_rows=total_rows)
+                           batch_rows=result['rows'], batch_total_rows=len(result['rows']))

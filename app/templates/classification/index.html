@@ -1,1 +1,238 @@
-{% extends 'base.html' %}{% from '_form_errors.html' import error_summary, field_error %}{% block title %}Klasifikasi{% endblock %}{% block content %}<header class="page-header"><p class="kicker">Pemodelan sentimen</p><h1>Klasifikasi SVM</h1><p>TF-IDF, pembagian data, training SVM, dan evaluasi dilakukan berurutan.</p></header><section class="panel"><h2>Tahapan model</h2><ol class="steps"><li>TF-IDF</li><li>Split Data</li><li>Training SVM</li><li>Evaluasi</li></ol>{% set errors = field_errors|default({}) %}{% if datasets %}<form method="post" action="{{ url_for('classification.train') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label for="dataset_id">Dataset hasil preprocessing</label><select id="dataset_id" name="dataset_id" aria-invalid="{{ 'true' if errors.get('dataset_id') else 'false' }}"{% if errors.get('dataset_id') %} aria-describedby="dataset_id-error"{% endif %}>{% for dataset in datasets %}<option value="{{ dataset.id }}" {{ 'selected' if selected_dataset_id|default(None) == dataset.id }}>{{ dataset.original_filename }}</option>{% endfor %}</select>{{ field_error(errors, 'dataset_id') }}<ul class="steps">{% for dataset in datasets %}{% set h = holdouts.get(dataset.id) %}<li>{{ dataset.original_filename }}: {{ h.total }} data uji independen{% if not h.ready %}. Kelas kurang: {{ h.missing|join(', ') }}{% endif %}</li>{% endfor %}</ul><p>Data uji berlabel manual independen diperlukan pada setiap kelas. Tandai di halaman Review dan Label.</p><button type="submit" class="button">Latih SVM</button></form>{% else %}<p role="status">Belum ada dataset yang selesai preprocessing.</p>{% endif %}</section><section class="panel"><h2>Hasil dan evaluasi</h2>{% if runs %}{% for run in runs %}<h3>Eksperimen {{ run.id }} / {{ run.experiment_name }}</h3><p>Dataset {{ run.dataset_id }}, split aktual {{ run.split_ratio }}, random state {{ run.random_state }}. Accuracy {{ run.accuracy }}, precision macro {{ run.precision_macro }}, recall macro {{ run.recall_macro }}, F1 macro {{ run.f1_macro }}.</p><table><caption>Confusion matrix: baris aktual, kolom prediksi</caption><thead><tr><th>Aktual / Prediksi</th><th>Negatif</th><th>Netral</th><th>Positif</th></tr></thead><tbody>{% for label in ['Negatif','Netral','Positif'] %}<tr><th>{{ label }}</th>{% for value in run.confusion_matrix[loop.index0] %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}</tbody></table><table><caption>Metrik per kelas</caption><thead><tr><th>Kelas</th><th>Precision</th><th>Recall</th><th>F1-score</th><th>Support</th></tr></thead><tbody>{% for label in ['Negatif','Netral','Positif'] %}<tr><th>{{ label }}</th><td>{{ run.classification_report[label]['precision'] }}</td><td>{{ run.classification_report[label]['recall'] }}</td><td>{{ run.classification_report[label]['f1-score'] }}</td><td>{{ run.classification_report[label]['support'] }}</td></tr>{% endfor %}</tbody></table>{% endfor %}{% else %}<p>Belum ada evaluasi. Nilai muncul setelah eksperimen valid dijalankan.</p>{% endif %}</section>{% endblock %}
+{% extends 'base.html' %}
+{% from '_form_errors.html' import field_error %}
+{% block title %}Klasifikasi{% endblock %}
+{% block content %}
+{% set errors = field_errors|default({}) %}
+{% macro stage_status(done, ready, waiting='Menunggu') %}
+{% if done %}<span class="stage-status stage-status-done">Selesai</span>{% elif ready %}<span class="stage-status stage-status-ready">Siap</span>{% else %}<span class="stage-status stage-status-waiting">{{ waiting }}</span>{% endif %}
+{% endmacro %}
+<header class="page-header classification-page-header">
+  <div>
+    <p class="kicker">Klasifikasi SVM</p>
+    <h1>Dashboard Klasifikasi Sentimen</h1>
+    <p>Split data, TF-IDF, training SVM, dan evaluasi dijalankan berurutan.</p>
+  </div>
+  {% if selected_dataset %}
+  <div class="classification-summary" aria-label="Ringkasan dataset">
+    <span class="classification-chip">
+      <span>Dataset</span>
+      <strong title="{{ selected_dataset.original_filename }}">{{ selected_dataset.original_filename }}</strong>
+    </span>
+    <span class="classification-chip">
+      <span>Rasio</span>
+      <strong>{{ selected_ratio }}</strong>
+    </span>
+  </div>
+  {% endif %}
+</header>
+
+{% if error %}<p role="alert" class="notice">{{ error }}</p>{% endif %}
+
+<section class="classification-grid" aria-label="Tahapan klasifikasi">
+  <article class="classification-card classification-setup">
+    <div class="classification-setup-header">
+      <h2>Pengaturan Training</h2>
+      {{ stage_status(split_done, can_split, 'Tertunda') }}
+    </div>
+    <div class="classification-setup-body">
+      {% if selected_dataset and eligibility %}
+      {% if evaluated_done %}
+      <p class="classification-hint">Hasil klasifikasi sudah tersedia di bagian Evaluasi.</p>
+      {% else %}
+      <p class="classification-warning" role="status">Belum ada hasil klasifikasi. Selesaikan pembagian data, TF-IDF, training, dan evaluasi.</p>
+      {% endif %}
+      <ul class="label-distribution" aria-label="Distribusi label final">
+        {% for label in classes %}
+        <li>{{ label }}: {{ eligibility.counts.get(label, 0) }} komentar</li>
+        {% endfor %}
+      </ul>
+      {% if not eligibility.ready %}
+      <p class="notice" role="status">{{ eligibility.message }}</p>
+      {% elif eligibility.warning %}
+      <p class="notice" role="status">{{ eligibility.warning }}</p>
+      {% endif %}
+      {% if eligibility.duplicates or eligibility.conflicts %}
+      <p class="classification-hint">{{ eligibility.duplicates }} baris duplikat digabung{% if eligibility.conflicts %}, {{ eligibility.conflicts }} teks dengan label bertentangan diabaikan{% endif %}.</p>
+      {% endif %}
+      <form class="classification-split-form" method="post" action="{{ url_for('classification.split_data') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="dataset_id" value="{{ selected_dataset.id }}">
+        <label for="split_ratio">Rasio Pembagian Data</label>
+        <select id="split_ratio" name="split_ratio">
+          {% for ratio in ratios %}
+          <option value="{{ ratio }}" {{ 'selected' if selected_ratio == ratio }}>{{ ratio }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="button classification-start" data-progress="Membagi dataset" {{ 'disabled' if not can_split }}>{{ 'Split Ulang' if split_done else 'Split Dataset' }}</button>
+      </form>
+      {% if not can_split %}<p class="classification-hint">Lengkapi label final semua kelas terlebih dahulu.</p>{% endif %}
+      {% if split_done and active_run %}
+      <dl class="model-stats">
+        <div><dt>Data training</dt><dd>{{ active_run.train_size }}</dd></div>
+        <div><dt>Data testing</dt><dd>{{ active_run.test_size }}</dd></div>
+        <div><dt>Random state</dt><dd>{{ active_run.random_state }}</dd></div>
+        <div><dt>Stratified</dt><dd>{{ 'Ya' if active_run.split_config.stratified else 'Tidak' }}</dd></div>
+      </dl>
+      <ul class="label-distribution" aria-label="Distribusi label training dan testing">
+        {% for label in classes %}
+        <li>{{ label }}: {{ active_run.train_distribution.get(label, 0) }} training / {{ active_run.test_distribution.get(label, 0) }} testing</li>
+        {% endfor %}
+      </ul>
+      <p class="classification-hint">Split ulang membuat pipeline baru dan mereset tahap TF-IDF, training, serta evaluasi.</p>
+      {% endif %}
+      <p class="classification-hint">Periksa label final di halaman <a href="{{ url_for('labels.index', dataset_id=selected_dataset.id) }}">Review dan Label</a>.</p>
+      {% else %}
+      <p role="status">Belum ada dataset hasil preprocessing.</p>
+      {% endif %}
+    </div>
+  </article>
+
+  <article class="classification-card">
+    <div class="classification-card-header">
+      <h2>Pembobotan TF-IDF</h2>
+      {{ stage_status(tfidf_done, tfidf_ready, 'Menunggu split') }}
+    </div>
+    <p class="classification-card-copy">TF-IDF fit hanya pada data training, lalu data testing ditransformasikan dengan vectorizer yang sama.</p>
+    {% if selected_dataset and tfidf_done and active_run %}
+    <dl class="model-stats">
+      <div><dt>Vocabulary</dt><dd>{{ active_run.tfidf_vocabulary_size }}</dd></div>
+      <div><dt>Matriks training</dt><dd>{{ active_run.tfidf_train_shape[0] }} x {{ active_run.tfidf_train_shape[1] }}</dd></div>
+      <div><dt>Matriks testing</dt><dd>{{ active_run.tfidf_test_shape[0] }} x {{ active_run.tfidf_test_shape[1] }}</dd></div>
+    </dl>
+    <p class="classification-hint">Vectorizer disimpan untuk dipakai kembali di halaman Testing.</p>
+    {% elif selected_dataset %}
+    <form method="post" action="{{ url_for('classification.tfidf') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="dataset_id" value="{{ selected_dataset.id }}">
+      <button type="submit" class="button" data-progress="Menghitung TF-IDF" {{ 'disabled' if not tfidf_ready }}>Proses TF-IDF</button>
+    </form>
+    {% if not tfidf_ready %}<p class="classification-hint">Selesaikan Split Data terlebih dahulu.</p>{% endif %}
+    {% else %}
+    <p role="status">Belum ada dataset hasil preprocessing.</p>
+    {% endif %}
+  </article>
+
+  <article class="classification-card">
+    <div class="classification-card-header">
+      <h2>Training SVM</h2>
+      {{ stage_status(trained_done, train_ready, 'Menunggu TF-IDF') }}
+    </div>
+    <p class="classification-card-copy">Melatih model SVM linear dengan matriks TF-IDF dan label sentimen data training.</p>
+    {% if selected_dataset and trained_done and active_run %}
+    <dl class="model-stats">
+      <div><dt>Kernel</dt><dd>{{ active_run.svm_config['kernel'] }}</dd></div>
+      <div><dt>C</dt><dd>{{ active_run.svm_config['C'] }}</dd></div>
+      <div><dt>Data training</dt><dd>{{ active_run.train_size }}</dd></div>
+    </dl>
+    <p class="classification-hint">Model tersimpan dan siap dipakai di halaman Testing.</p>
+    {% elif selected_dataset %}
+    <form method="post" action="{{ url_for('classification.train') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="dataset_id" value="{{ selected_dataset.id }}">
+      {{ field_error(errors, 'dataset_id') }}
+      <button type="submit" class="button" data-progress="Melatih model SVM" {{ 'disabled' if not train_ready }}>Training Model</button>
+    </form>
+    {% if not train_ready %}<p class="classification-hint">Selesaikan Pembobotan TF-IDF terlebih dahulu.</p>{% endif %}
+    {% else %}
+    <p role="status">Belum ada dataset hasil preprocessing.</p>
+    {% endif %}
+  </article>
+
+  <article class="classification-card">
+    <div class="classification-card-header">
+      <h2>Evaluasi Model</h2>
+      {{ stage_status(evaluated_done, eval_ready, 'Menunggu training') }}
+    </div>
+    <p class="classification-card-copy">Menghitung metrik dari label aktual dan hasil prediksi pada data testing.</p>
+    {% if selected_dataset and evaluated_done and active_run %}
+    <dl class="model-stats">
+      <div><dt>Accuracy</dt><dd>{{ '%.4f'|format(active_run.accuracy|float) }}</dd></div>
+      <div><dt>F1 macro</dt><dd>{{ '%.4f'|format(active_run.f1_macro|float) }}</dd></div>
+      <div><dt>Data diuji</dt><dd>{{ active_run.test_count }}</dd></div>
+    </dl>
+    <div class="classification-card-actions">
+      <a class="button" href="{{ url_for('results.index', dataset_id=selected_dataset.id) }}">Lihat Hasil Klasifikasi</a>
+      <a class="page-link" href="#hasil-evaluasi">Lihat Evaluasi di Halaman Ini</a>
+    </div>
+    {% elif selected_dataset %}
+    <form method="post" action="{{ url_for('classification.evaluate') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="dataset_id" value="{{ selected_dataset.id }}">
+      <button type="submit" class="button" data-progress="Mengevaluasi model" {{ 'disabled' if not eval_ready }}>Evaluasi Model</button>
+    </form>
+    {% if not eval_ready %}<p class="classification-hint">Selesaikan Training SVM terlebih dahulu.</p>{% endif %}
+    {% else %}
+    <p role="status">Belum ada dataset hasil preprocessing.</p>
+    {% endif %}
+  </article>
+</section>
+
+<section class="panel" id="hasil-evaluasi">
+  <h2>Hasil dan Evaluasi</h2>
+  {% if evaluated_done and active_run %}
+  <p>Dataset {{ active_run.dataset_id }}, split {{ active_run.split_ratio }} ({{ active_run.train_size }} training / {{ active_run.test_size }} testing), random state {{ active_run.random_state }}. Jumlah data diuji: {{ active_run.test_count }}.</p>
+  <div class="classification-metrics" aria-label="Metrik evaluasi">
+    <div><span>Accuracy</span><strong>{{ '%.4f'|format(active_run.accuracy|float) }}</strong></div>
+    <div><span>Precision macro</span><strong>{{ '%.4f'|format(active_run.precision_macro|float) }}</strong></div>
+    <div><span>Recall macro</span><strong>{{ '%.4f'|format(active_run.recall_macro|float) }}</strong></div>
+    <div><span>F1 macro</span><strong>{{ '%.4f'|format(active_run.f1_macro|float) }}</strong></div>
+  </div>
+  <h3>Confusion Matrix</h3>
+  <table>
+    <caption>Confusion matrix: baris aktual, kolom prediksi</caption>
+    <thead>
+      <tr>
+        <th scope="col">Aktual / Prediksi</th>
+        {% for label in result_classes %}<th scope="col">{{ label }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for label in result_classes %}
+      {% set row = active_run.confusion_matrix[loop.index0] %}
+      <tr>
+        <th>{{ label }}</th>
+        {% for value in row %}<td>{{ value }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <h3>Classification Report</h3>
+  <table>
+    <caption>Metrik per kelas pada data testing</caption>
+    <thead>
+      <tr>
+        <th scope="col">Kelas</th>
+        <th scope="col">Precision</th>
+        <th scope="col">Recall</th>
+        <th scope="col">F1-score</th>
+        <th scope="col">Support</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for label in result_classes %}
+      <tr>
+        <th>{{ label }}</th>
+        <td>{{ '%.4f'|format(active_run.classification_report[label]['precision']|float) }}</td>
+        <td>{{ '%.4f'|format(active_run.classification_report[label]['recall']|float) }}</td>
+        <td>{{ '%.4f'|format(active_run.classification_report[label]['f1-score']|float) }}</td>
+        <td>{{ active_run.classification_report[label]['support']|int }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <h3>Distribusi Prediksi</h3>
+  <ul class="label-distribution">
+    {% for label in result_classes %}
+    <li>{{ label }}: {{ active_run.prediction_distribution.get(label, 0) }} prediksi</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p role="status">Belum ada evaluasi.
+    {% if not split_done %}Selesaikan Split Data terlebih dahulu.
+    {% elif not tfidf_done %}Selesaikan Pembobotan TF-IDF terlebih dahulu.
+    {% elif not trained_done %}Selesaikan Training SVM terlebih dahulu.
+    {% else %}Jalankan Evaluasi Model untuk menghitung metrik data testing.{% endif %}
+  </p>
+  {% endif %}
+</section>
+{% endblock %}

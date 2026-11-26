@@ -70,3 +70,11 @@ def test_classification_guidance_points_to_labels(client):
     html = response.data.decode()
     assert "Review dan Label" in html
     assert "halaman Preprocessing" not in html
+    assert "Dashboard Klasifikasi Sentimen" in html
+    assert "TF-IDF" in html
+    assert "Split Data" in html
+    assert "Training SVM" in html
+    assert "Proses TF-IDF" in html
+    assert "Split Dataset" in html
+    assert "Training Model" in html
+    assert "Evaluasi Model" in html

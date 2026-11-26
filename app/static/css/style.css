@@ -185,12 +185,12 @@ td,th{border-bottom-color:#F1E8E6}
 .auth-card form,.auth-links{animation:card-enter 420ms 200ms var(--ease-standard) both}
 .account-block,.sidebar form{animation:card-enter 420ms var(--ease-standard) both}
 /* Blok akun sidebar: identitas akun + role; logout sebagai tombol di bawahnya. */
-.account-block{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--color-primary-border);border-radius:10px;background:rgba(255,255,255,.96);box-shadow:0 2px 8px rgba(76,42,48,.04);margin-top:auto}
+.account-block{display:flex;align-items:center;gap:10px;width:calc(100% + 24px);margin-inline:-12px;padding:12px 14px;border:1px solid var(--color-primary-border);border-radius:10px;background:rgba(255,255,255,.96);box-shadow:0 2px 8px rgba(76,42,48,.04);margin-top:auto}
 /* Avatar account (dipakai topbar & profil). */
 .account-avatar{width:36px;height:36px;flex:0 0 auto;display:grid;place-items:center;border-radius:50%;background:linear-gradient(135deg,var(--color-primary),var(--color-coral));color:#fff;font-weight:700;font-size:.95rem}
-.account-meta{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.account-meta{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.3}
 .account-meta strong{font-size:.85rem;overflow-wrap:anywhere}
-.account-meta small{color:var(--color-muted);font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.account-meta small{color:var(--color-muted);font-size:.72rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase;overflow-wrap:anywhere}
 @media(max-width:760px){.account-block{padding:8px 10px;margin-top:0}.account-avatar{width:30px;height:30px;font-size:.8rem}}
 .public-login-link{border-radius:10px}
 .public-login-link:hover{color:var(--color-primary)}
@@ -254,4 +254,488 @@ table a:hover{color:var(--color-primary)}
 }
 @media (max-width: 760px) {
   .preprocessing-stages { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+}
+
+/* Dashboard klasifikasi: kartu tahapan model mengikuti alur kerja nyata. */
+.classification-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.classification-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.classification-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  font-size: .85rem;
+}
+.classification-chip span {
+  flex-shrink: 0;
+  color: var(--color-muted);
+  font-weight: 700;
+}
+.classification-chip strong {
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.classification-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.classification-card.classification-setup {
+  grid-column: 1 / -1;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.classification-setup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 24px;
+  background: var(--color-primary-tint);
+  border-bottom: 1px solid var(--color-border);
+}
+.classification-setup-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+.classification-setup-body {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+}
+.classification-warning {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-lime-soft);
+  color: var(--color-text);
+  font-size: .9rem;
+}
+.classification-card .classification-split-form {
+  display: grid;
+  gap: 8px;
+  max-width: none;
+  margin-top: 0;
+}
+.classification-split-form label {
+  font-size: .85rem;
+  font-weight: 700;
+}
+.classification-split-form select {
+  width: 100%;
+  min-height: 46px;
+  font-size: 1rem;
+}
+.classification-split-form .classification-start {
+  width: 100%;
+  min-height: 48px;
+  font-size: 1rem;
+}
+.classification-setup .model-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 760px) {
+  .classification-setup-header { padding: 16px 20px; }
+  .classification-setup-body { padding: 20px; }
+  .classification-chip strong { max-width: 180px; }
+  .classification-setup .model-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .classification-chip strong { max-width: 140px; }
+}
+
+/* Halaman hasil klasifikasi: ringkasan, grafik, dan tabel prediksi testing. */
+.results-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 20px;
+}
+.results-grid .panel { margin: 0; }
+.results-chart {
+  height: 260px;
+  position: relative;
+  margin: 12px 0;
+}
+.results-table-wrap { overflow-x: auto; }
+.results-table { min-width: 1050px; }
+.results-table th:nth-child(1),
+.results-table td:nth-child(1) { min-width: 64px; white-space: nowrap; }
+.results-table th:nth-child(2),
+.results-table td:nth-child(2),
+.results-table th:nth-child(3),
+.results-table td:nth-child(3) { min-width: 280px; }
+.results-table th:nth-child(4),
+.results-table td:nth-child(4),
+.results-table th:nth-child(5),
+.results-table td:nth-child(5) { min-width: 110px; }
+.results-table th:nth-child(6),
+.results-table td:nth-child(6) { min-width: 90px; white-space: nowrap; }
+.prediction-status { font-weight: 700; }
+.prediction-status.correct { color: #0F7A5A; }
+.prediction-status.wrong { color: #B42318; }
+.results-info { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  .results-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .results-info { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Panel cek kalimat baru: header bar dan form satu kolom. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.testing-panel {
+  padding: 0;
+  overflow: hidden;
+}
+.testing-panel-header {
+  padding: 14px 20px;
+  background: var(--color-primary-tint);
+  border-bottom: 1px solid var(--color-border);
+}
+.testing-panel-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.testing-panel-body { padding: 22px; }
+.testing-panel form { max-width: none; }
+.testing-panel textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  background: var(--color-surface);
+}
+.testing-panel textarea::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
+}
+.testing-panel form .button { justify-self: start; }
+.testing-panel .testing-result {
+  margin: 12px 0 0;
+  color: var(--color-text);
+  font-weight: 700;
+}
+.testing-tested {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+.testing-tested-label {
+  margin: 0 0 6px;
+  color: var(--color-muted);
+  font-size: .85rem;
+  font-weight: 700;
+}
+.testing-tested-text {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--color-primary);
+  color: var(--color-text);
+  font-style: italic;
+}
+.testing-prediction {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  color: #FFF;
+  font-weight: 700;
+}
+.testing-prediction strong {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .2);
+  font-size: .85rem;
+}
+.testing-prediction-positif { background: #0F7A5A; }
+.testing-prediction-negatif { background: #B42318; }
+.testing-prediction-netral { background: #8A5A00; }
+.testing-batch-form { display: grid; gap: 12px; }
+.testing-upload-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.testing-upload-row input[type=file] {
+  width: 100%;
+  min-height: 46px;
+  margin-bottom: 0;
+  padding: 8px 10px;
+  background: var(--paper);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.testing-upload-row .button {
+  min-height: 46px;
+  white-space: nowrap;
+}
+.testing-column-field {
+  display: grid;
+  gap: 6px;
+  max-width: 360px;
+}
+.testing-column-field label {
+  font-size: .85rem;
+  font-weight: 700;
+}
+.testing-column-field input { margin-bottom: 0; }
+.testing-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+.testing-summary-card {
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid;
+  border-radius: 8px;
+}
+.testing-summary-card span {
+  display: block;
+  color: var(--color-muted);
+  font-size: .8rem;
+  font-weight: 700;
+}
+.testing-summary-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.6rem;
+  line-height: 1.1;
+}
+.testing-summary-card.positive {
+  border-left-color: #10B981;
+  background: #F0FBF6;
+}
+.testing-summary-card.positive strong { color: #0F7A5A; }
+.testing-summary-card.neutral {
+  border-left-color: #F59E0B;
+  background: #FFF8E8;
+}
+.testing-summary-card.neutral strong { color: #A15C00; }
+.testing-summary-card.negative {
+  border-left-color: #EF4444;
+  background: #FFF1F1;
+}
+.testing-summary-card.negative strong { color: #B42318; }
+.testing-summary-card.total {
+  border-left-color: var(--color-primary);
+  background: var(--color-primary-tint);
+}
+.testing-summary-card.total strong { color: var(--color-primary-active); }
+.testing-results-wrap { overflow-x: auto; }
+.testing-results-table {
+  min-width: 0;
+  width: 100%;
+  table-layout: fixed;
+}
+.testing-results-table th:nth-child(1),
+.testing-results-table td:nth-child(1) { min-width: 0; width: 85%; }
+.testing-results-table th:nth-child(2),
+.testing-results-table td:nth-child(2) { min-width: 0; width: 15%; }
+.testing-results-table td:nth-child(2) { text-align: center; }
+.testing-results-table thead th { text-align: center; }
+.testing-empty {
+  padding: 22px;
+  color: var(--color-muted);
+  text-align: center;
+}
+@media (max-width: 760px) {
+  .testing-upload-row { grid-template-columns: 1fr; }
+  .testing-upload-row .button { width: 100%; }
+  .testing-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.classification-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+}
+.classification-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.classification-card h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+.stage-status {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.stage-status-done {
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary-border);
+  color: var(--color-primary-active);
+}
+.stage-status-ready {
+  background: var(--color-lime-soft);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+.stage-status-waiting {
+  background: var(--paper);
+  border-color: var(--color-border);
+  color: var(--color-muted);
+}
+.classification-card-copy {
+  flex: 1;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: .95rem;
+}
+.classification-card > .button {
+  align-self: flex-start;
+  margin-top: auto;
+}
+.classification-card form {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  max-width: none;
+}
+.classification-card label {
+  font-size: .85rem;
+  font-weight: 700;
+}
+.classification-card select { width: 100%; }
+.classification-card form .button {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+.classification-card .button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.classification-card-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+.classification-card-actions .button,
+.classification-card-actions .page-link {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+.classification-card .notice { margin: 0; }
+.classification-hint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: .82rem;
+  line-height: 1.45;
+}
+.model-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin: 0;
+}
+.model-stats div {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+.model-stats dt {
+  color: var(--color-muted);
+  font-size: .75rem;
+  font-weight: 700;
+}
+.model-stats dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+}
+.label-distribution {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-muted);
+  font-size: .9rem;
+}
+.classification-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 22px;
+}
+.classification-metrics div {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--paper);
+}
+.classification-metrics span {
+  display: block;
+  color: var(--color-muted);
+  font-size: .75rem;
+  font-weight: 700;
+}
+.classification-metrics strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.2rem;
+  line-height: 1.25;
+}
+.classification-holdouts .steps { margin-bottom: 12px; }
+#hasil-evaluasi { scroll-margin-top: 24px; }
+@media (max-width: 1000px) {
+  .classification-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .classification-grid { grid-template-columns: 1fr; }
+  .classification-card { padding: 20px; }
+  .classification-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .model-stats { grid-template-columns: 1fr; }
 }
